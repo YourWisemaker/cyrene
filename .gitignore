@@ -1,0 +1,37 @@
+# Rust
+/target/
+**/target/
+Cargo.lock.orig
+*.pdb
+
+# Secrets / environment — never commit real secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+keys/
+
+# Cyrene runtime data
+.cyrene/
+*.db
+*.db-wal
+*.db-shm
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs / temp
+*.log
+tmp/
+.kiro/tmp-*
+
+# Private / local-only notes (never publish)
+conversation-with-gemini.md
+
+# Kiro spec/workspace metadata — local only, never publish
+.kiro/
