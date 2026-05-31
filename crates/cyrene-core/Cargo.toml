@@ -1,0 +1,15 @@
+[package]
+name = "cyrene-core"
+description = "Core domain types, traits, and the Agent_Loop contract for Cyrene."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

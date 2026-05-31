@@ -1,0 +1,15 @@
+[package]
+name = "cyrene-runtime"
+description = "The Tokio daemon, supervisor, and crash-restore runtime for Cyrene."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

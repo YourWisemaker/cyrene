@@ -1,0 +1,49 @@
+# Cyrene — open-source, self-improving autonomous AI agent.
+#
+# This is the Cargo workspace manifest. Each subsystem from the design lives in
+# its own crate under `crates/*` so it can be built and tested in isolation and
+# so the dependency graph enforces the architectural layering (core depends on
+# nothing app-specific; adapters depend on core; the CLI wires everything).
+
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+# Shared package metadata inherited by every member crate via `*.workspace = true`.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "Apache-2.0"
+authors = ["The Cyrene Authors"]
+repository = "https://github.com/cyrene-agent/cyrene"
+homepage = "https://github.com/cyrene-agent/cyrene"
+description = "Cyrene: an open-source, self-improving autonomous AI agent."
+
+# Shared dependency versions. Member crates opt in with `dep.workspace = true`.
+# These are declared centrally so every crate stays on the same versions; they
+# are added to individual crates as the corresponding subsystems are built out.
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Shared lint configuration applied to every member crate that declares
+# `[lints] workspace = true`. CI runs `cargo clippy -- -D warnings`, so these
+# warnings are promoted to hard errors in the pipeline.
+[workspace.lints.rust]
+unsafe_code = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# Optimize release builds for the single-binary install target.
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

@@ -1,0 +1,15 @@
+[package]
+name = "cyrene-hub"
+description = "The Skills_Hub client for publishing, searching, and installing community skills."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

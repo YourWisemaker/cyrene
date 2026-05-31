@@ -1,0 +1,20 @@
+[package]
+name = "cyrene-cli"
+description = "The Cyrene command-line interface and onboarding binary."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+# The single installable binary is named `cyrene`.
+[[bin]]
+name = "cyrene"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]

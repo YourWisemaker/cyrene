@@ -1,0 +1,15 @@
+[package]
+name = "cyrene-models"
+description = "The Model trait, Model_Router escalation, Budget_Guard, and provider integrations for Cyrene."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

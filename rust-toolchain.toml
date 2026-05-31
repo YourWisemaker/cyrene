@@ -1,0 +1,7 @@
+# Pin the Rust toolchain so every contributor and CI runner builds Cyrene with
+# the same compiler and the components our checks rely on (rustfmt, clippy).
+# The pinned version matches `rust-version` in the workspace manifest.
+[toolchain]
+channel = "1.82.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

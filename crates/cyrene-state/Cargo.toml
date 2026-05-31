@@ -1,0 +1,15 @@
+[package]
+name = "cyrene-state"
+description = "The git-style State_Tree and checkpoint/rollback store for Cyrene."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

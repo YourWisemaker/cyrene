@@ -1,0 +1,64 @@
+name: CI
+
+# Run on pushes to the main branch and on every pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs for the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Format and lint run once on Linux; they are platform-independent.
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain (from rust-toolchain.toml)
+        # rustup reads channel + components from rust-toolchain.toml on first use.
+        run: rustup show
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.toml') }}
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+      - name: cargo clippy -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  # Build and test on all three supported platforms (R1.4).
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.toml') }}
+      - name: cargo build
+        run: cargo build --workspace --all-targets
+      - name: cargo test
+        run: cargo test --workspace --all-features
