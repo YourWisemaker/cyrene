@@ -1,0 +1,72 @@
+# Cyrene configuration — EXAMPLE.
+#
+# Copy this file to ~/.cyrene/config.toml and edit it:
+#
+#     mkdir -p ~/.cyrene && cp config.example.toml ~/.cyrene/config.toml
+#
+# This is the SINGLE configuration file for the whole agent (Requirement 2.5).
+# Components are declared in a `[<type>.<alias>]` shape so you can register
+# several instances of the same component type under different aliases.
+#
+# SECRETS ARE NEVER STORED HERE. Each entry references a secret only by the
+# NAME of the environment variable that holds it (e.g. `api_key_env`,
+# `token_env`). Put the actual values in a `.env` file (copy `.env.example`)
+# or your real environment. This file is safe to commit/share.
+
+# -----------------------------------------------------------------------------
+# Model providers — [providers.<type>.<alias>]  (Requirement 12)
+# -----------------------------------------------------------------------------
+
+# A premium OpenAI model registered under the alias "coding".
+[providers.openai.coding]
+model = "gpt-4o"
+tier = "Premium"
+api_key_env = "OPENAI_API_KEY"
+
+# A local Ollama model registered under the alias "local" (the router's default
+# selection). Local providers usually need no API key.
+[providers.ollama.local]
+model = "llama3.1"
+tier = "Local"
+base_url = "http://localhost:11434"
+
+# A generic OpenAI-compatible provider (e.g. DeepSeek) via a base URL override.
+[providers.openai-compat.deepseek]
+model = "deepseek-chat"
+tier = "Premium"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+
+# -----------------------------------------------------------------------------
+# Channels — [channels.<type>.<alias>]  (Requirement 7)
+# -----------------------------------------------------------------------------
+
+# The local CLI channel needs no token.
+[channels.cli.default]
+
+# A Telegram bot; `allowlist` restricts who may message it inbound (R22.5).
+[channels.telegram.personal]
+token_env = "TELEGRAM_BOT_TOKEN"
+allowlist = ["123456789"]
+
+# -----------------------------------------------------------------------------
+# Memory backends — [memory.<type>.<alias>]  (Requirement 16)
+# -----------------------------------------------------------------------------
+
+# The default SQLite-backed memory graph.
+[memory.sqlite.default]
+path = "~/.cyrene/cyrene.db"
+
+# -----------------------------------------------------------------------------
+# Autonomy / security policy  (Requirement 22)
+# -----------------------------------------------------------------------------
+# These are the SECURE DEFAULTS and may be omitted entirely. They are shown
+# here for visibility. Raising autonomy (e.g. setting `medium = "auto"`) is an
+# explicit, reviewable change (R22.4).
+[autonomy]
+low = "auto"           # low-risk steps run automatically
+medium = "approval"    # medium-risk steps require approval (R22.1)
+high = "blocked"       # high-risk steps are blocked until autonomy is raised
+require_gateway_auth = true  # network gateway requires authentication (R22.5)
+# Commands allowed to run without per-step approval (R22.2). Empty by default.
+command_allowlist = ["git", "ls", "cat"]
