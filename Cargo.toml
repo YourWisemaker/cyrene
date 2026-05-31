@@ -35,6 +35,15 @@ tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+# Receipt_Ledger (R5): embedded SQLite (bundled = no system libsqlite needed),
+# ed25519 signing + SHA-256 hash chaining, and a CSPRNG for install-key gen.
+rusqlite = { version = "0.32", features = ["bundled"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+rand_core = { version = "0.6", features = ["getrandom"] }
+tempfile = "3"
+# Property-based testing (R5 ledger invariants, and other Correctness Properties).
+proptest = "1"
 
 # Shared lint configuration applied to every member crate that declares
 # `[lints] workspace = true`. CI runs `cargo clippy -- -D warnings`, so these

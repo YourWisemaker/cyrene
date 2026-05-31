@@ -13,3 +13,25 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+cyrene-core = { path = "../cyrene-core" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rusqlite = { workspace = true }
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+# Per-test isolated SQLite files / key files in a temp dir.
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+# Property-based tests for ledger Correctness Properties 1 & 2 (task 4.3).
+proptest = { workspace = true }
+# The property tests reopen the DB on a second connection to persist tampering
+# (mirroring the in-crate 4.2 helpers), build deterministic session ids, and
+# pin reproducible timestamps.
+rusqlite = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
