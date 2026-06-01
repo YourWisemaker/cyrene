@@ -26,7 +26,7 @@ jobs:
         # rustup reads channel + components from rust-toolchain.toml on first use.
         run: rustup show
       - name: Cache cargo registry and build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -51,7 +51,7 @@ jobs:
       - name: Install Rust toolchain (from rust-toolchain.toml)
         run: rustup show
       - name: Cache cargo registry and build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
