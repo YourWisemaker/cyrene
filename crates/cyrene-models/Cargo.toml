@@ -13,3 +13,11 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+cyrene-core = { path = "../cyrene-core" }
+cyrene-config = { path = "../cyrene-config" }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
