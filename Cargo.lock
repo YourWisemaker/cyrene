@@ -214,6 +214,7 @@ version = "0.1.0"
 name = "cyrene-compress"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "tempfile",
 ]
 
