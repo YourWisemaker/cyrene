@@ -1,0 +1,306 @@
+<p align="center">
+  <img src="cyrenelogo.jpeg" alt="Cyrene Logo" width="300">
+</p>
+
+<h1 align="center">Cyrene</h1>
+
+<p align="center">
+  <strong>Open-source, self-improving autonomous AI agent</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/cyrene-agent/cyrene/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License">
+  </a>
+  <a href="https://github.com/cyrene-agent/cyrene/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/cyrene-agent/cyrene/ci.yml?branch=main" alt="CI">
+  </a>
+  <a href="https://github.com/cyrene-agent/cyrene">
+    <img src="https://img.shields.io/badge/Rust-1.82+-orange?logo=rust" alt="Rust">
+  </a>
+</p>
+
+---
+
+## What is Cyrene?
+
+Cyrene is an open-source, self-improving autonomous AI agent written in Rust. It connects to any messaging channel (Telegram, Slack, Discord, WhatsApp, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
+
+### Key Features
+
+- **Trait-based modularity** — swap out any Channel, Memory, Model, or Tool via config
+- **Safety pipeline** — every request flows through: injection scan → plan → shadow execution → approval gate → execute → receipt → checkpoint
+- **Self-improvement** — generates, tests, and saves reusable `SKILL.md` definitions
+- **Bundled skill library** — 200+ curated skills across 20 categories
+- **Extension SDK** — load custom providers, channels, and tools via `cyrene.plugin.toml`
+- **Hardware integration** — optional GPIO/I2C/SPI/serial support with companion firmware
+- **Signed audit trail** — every action produces a hash-chained, Ed25519-signed receipt
+- **Multi-channel** — CLI, Telegram, Slack, Discord, WhatsApp, email, Signal, Matrix
+- **Multi-model** — OpenAI, Anthropic, Gemini, OpenRouter, Ollama, and any OpenAI-compatible endpoint
+- **Self-hostable** — Docker, Nix, or bare-metal install
+
+---
+
+## Quick Start
+
+### One-Line Install (Linux/macOS)
+
+```bash
+curl -sSf https://raw.githubusercontent.com/cyrene-agent/cyrene/main/install.sh | bash
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/cyrene-agent/cyrene.git
+cd cyrene
+cargo build --release --bin cyrene
+cp target/release/cyrene /usr/local/bin/
+```
+
+### Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### Nix
+
+```bash
+nix build github:cyrene-agent/cyrene
+```
+
+### Get Started
+
+```bash
+cyrene onboard     # Interactive setup wizard
+cyrene doctor      # Check your configuration
+cyrene gateway     # Start Cyrene
+```
+
+---
+
+## Architecture
+
+```
+User/Event → Channel Gateway → Injection Scanner → Model Router
+    → Shadow Executor (if irreversible) → Approval Gate
+    → Executor → Checkpoint → Receipt Ledger → Response
+```
+
+### Workspace Crates
+
+| Crate | Purpose |
+|-------|---------|
+| `cyrene-core` | Domain types, traits, error model |
+| `cyrene-config` | TOML config loading, Plugin Registry, extension loader |
+| `cyrene-sdk` | Extension SDK: public traits + Host API |
+| `cyrene-ledger` | Signed, append-only receipt ledger |
+| `cyrene-state` | Git-style state tree and checkpoints |
+| `cyrene-safety` | Sandbox, shadow executor, approval gate, injection scanner |
+| `cyrene-models` | Model providers, router, budget guard |
+| `cyrene-runtime` | Agent loop, daemon, supervisor |
+| `cyrene-channels` | Channel gateway and built-in messaging channels |
+| `cyrene-memory` | SQLite-backed knowledge graph |
+| `cyrene-skills` | Skill engine, library, and bundles |
+| `cyrene-tools` | Tool registry, built-in tools, MCP client |
+| `cyrene-events` | Webhook listener, heartbeat engine, cron scheduler |
+| `cyrene-hardware` | GPIO/I2C/SPI/serial peripheral control (optional) |
+| `cyrene-cli` | CLI binary, onboarding, doctor |
+| `cyrene-dashboard` | Local web dashboard control plane |
+| `cyrene-bridge` | Workspace bridge (browser, terminal, cloud) |
+
+---
+
+## Configuration
+
+Cyrene is configured by a single TOML file at `~/.cyrene/config.toml`:
+
+```toml
+[providers.openai.coding]
+model = "gpt-4o"
+tier = "Premium"
+api_key_env = "OPENAI_API_KEY"
+
+[providers.ollama.local]
+model = "llama3.1"
+tier = "Local"
+
+[channels.cli.default]
+
+[channels.telegram.personal]
+token_env = "TELEGRAM_BOT_TOKEN"
+allowlist = ["123456789"]
+
+[memory.sqlite.default]
+path = "~/.cyrene/cyrene.db"
+
+[autonomy]
+low = "auto"
+medium = "approval"
+high = "blocked"
+command_allowlist = ["git", "ls", "cat"]
+```
+
+Secrets are loaded from environment variables or a `.env` file — never from the config.
+
+---
+
+## Skills Library
+
+Cyrene ships with **200+ bundled skills** across categories:
+
+| Category | Examples |
+|----------|---------|
+| software-development | code-review, debug-error, write-unit-test |
+| devops | docker-compose, ci-pipeline, k8s-deployment |
+| data-science | data-cleaning, model-train, sql-query |
+| ai-ml | prompt-engineer, rag-build, agent-design |
+| security | vulnerability-scan, threat-model, secret-scan |
+| productivity | task-prioritize, project-plan, workflow-automate |
+| ...and 14 more | finance, creative, communication, smart-home, etc. |
+
+Optional skill bundles are available under `optional-skills/` for specialized domains.
+
+---
+
+## Extensions
+
+Cyrene uses a plugin architecture with `cyrene.plugin.toml` manifests:
+
+```toml
+name = "my-provider"
+version = "1.0.0"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["MY_API_KEY"]
+```
+
+List installed extensions:
+```bash
+cyrene extensions list
+```
+
+---
+
+## Hardware & Firmware
+
+Cyrene can control hardware peripherals (GPIO, I2C, SPI, serial) through the optional `cyrene-hardware` crate and companion firmware for ESP32.
+
+Build and flash firmware:
+```bash
+cd firmware/esp32
+idf.py build && idf.py flash
+```
+
+---
+
+## Development
+
+### Prerequisites
+
+- Rust 1.82+ (install via [rustup](https://rustup.rs))
+
+### Build & Test
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+```
+
+### Fuzz Testing
+
+```bash
+cargo install cargo-fuzz
+cargo fuzz run fuzz_config
+cargo fuzz run fuzz_tool_params
+```
+
+---
+
+## Deployment
+
+### Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### NixOS
+
+```nix
+# In your flake.nix
+inputs.cyrene.url = "github:cyrene-agent/cyrene";
+
+# In your configuration.nix
+services.cyrene.enable = true;
+```
+
+### Marketplace Templates
+
+Pre-built templates for self-hosting platforms:
+- `marketplace/coolify/`
+- `marketplace/dokploy/`
+- `marketplace/easypanel/`
+
+---
+
+## CLI Commands
+
+```
+cyrene agent          Start Cyrene in agent mode
+cyrene gateway        Start the runtime gateway
+cyrene dashboard      Start the web dashboard
+cyrene onboard        Run the setup wizard
+cyrene doctor         Check system health
+cyrene model list     List configured model providers
+cyrene skills list    List bundled skills
+cyrene extensions list List installed extensions
+cyrene catalog list   List optional components
+cyrene tools list     List available tools
+cyrene cron list      List scheduled jobs
+```
+
+---
+
+## Security Model
+
+Cyrene implements defense-in-depth:
+
+1. **Autonomy Policy** — risk classification with secure defaults (medium=approval, high=blocked)
+2. **Sandboxing** — OS-level confinement (Landlock/Seatbelt/Job Objects)
+3. **Shadow Execution** — dry-run before irreversible actions
+4. **Approval Gates** — human-in-the-loop for high-stakes decisions
+5. **Receipt Ledger** — immutable, signed, hash-chained audit trail
+6. **Injection Scanner** — defense against prompt injection attacks
+
+See [docs/security.md](docs/security.md) for the full security model.
+
+---
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for architecture details, build commands, and contribution guidelines.
+
+1. Fork the repository
+2. Create a feature branch
+3. Run `cargo fmt` and `cargo clippy`
+4. Write tests for new functionality
+5. Submit a pull request
+
+---
+
+## License
+
+Cyrene is licensed under the [Apache License 2.0](LICENSE).
+
+---
+
+<p align="center">
+  <strong>Cyrene</strong> — Your autonomous AI agent, under your control.
+</p>
