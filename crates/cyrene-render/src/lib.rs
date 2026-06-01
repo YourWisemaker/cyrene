@@ -16,7 +16,9 @@
 mod diagram;
 mod render;
 
-pub use diagram::{DiagramFormat, DiagramRenderer, DiagramResult, FallbackRenderer, generate_diagram};
+pub use diagram::{
+    generate_diagram, DiagramFormat, DiagramRenderer, DiagramResult, FallbackRenderer,
+};
 pub use render::{
     PdfRenderer, RenderError, RenderOutput, RenderRequest, ReportRenderer, TemplateEngine,
 };
