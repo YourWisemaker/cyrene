@@ -269,6 +269,7 @@ version = "0.1.0"
 name = "cyrene-safety"
 version = "0.1.0"
 dependencies = [
+ "cyrene-config",
  "cyrene-core",
  "proptest",
  "serde_json",

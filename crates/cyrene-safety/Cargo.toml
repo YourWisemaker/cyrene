@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 cyrene-core = { path = "../cyrene-core" }
+cyrene-config = { path = "../cyrene-config" }
 thiserror.workspace = true
 tempfile.workspace = true
 tracing = "0.1"

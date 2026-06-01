@@ -19,6 +19,7 @@
 //! actions. On a failed step, it reports the failure and withholds real
 //! execution.
 
+pub mod autonomy;
 pub mod sandbox;
 pub mod shadow_executor;
 
@@ -29,6 +30,8 @@ pub use shadow_executor::{
     FailedStep, FileChange, FileChangeKind, InterceptedAction, ProjectedOutcomeSummary,
     ShadowExecutionConfig, ShadowExecutor,
 };
+
+pub use autonomy::{AutonomyDecision, AutonomyPolicy, RiskClassifier};
 
 #[cfg(target_os = "macos")]
 pub use sandbox::confinement::SeatbeltConfinement;
