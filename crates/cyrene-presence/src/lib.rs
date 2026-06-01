@@ -1,8 +1,16 @@
-//! `cyrene-presence`: the Presence_Engine and Persona_Engine for Cyrene.
+//! `cyrene-presence`: the Presence_Engine and Persona_Engine (R17, R18).
 //!
-//! Placeholder scaffold (task 1). The real implementation lands in a later task;
-//! for now the crate exposes only a subsystem identifier so the workspace
-//! compiles and `cargo test` has something to run.
+//! - [`PresenceEngine`] — emits real-time thinking signals and status updates
+//!   during long-running work (R17). Tasks running >5s get periodic updates at
+//!   ≤30s intervals, plus a completion summary.
+//! - [`PersonaEngine`] — adapts communication tone, verbosity, and urgency to
+//!   context (R18). Emergency → crisp; creative → relaxed; away → wrap-up.
+
+mod persona;
+mod presence;
+
+pub use persona::{Persona, PersonaContext, PersonaEngine};
+pub use presence::{PresenceEngine, StatusUpdate};
 
 /// Returns the stable identifier of this subsystem crate.
 #[must_use]
