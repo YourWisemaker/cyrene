@@ -21,7 +21,7 @@ cyrene-core = { path = "../cyrene-core" }
 cyrene-config = { path = "../cyrene-config" }
 cyrene-sdk = { path = "../cyrene-sdk" }
 clap = { version = "~4.4", features = ["derive"] }
-dialoguer = "0.11"
+dialoguer = "0.12"
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
