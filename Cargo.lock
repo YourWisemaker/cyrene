@@ -213,6 +213,9 @@ version = "0.1.0"
 [[package]]
 name = "cyrene-compress"
 version = "0.1.0"
+dependencies = [
+ "tempfile",
+]
 
 [[package]]
 name = "cyrene-config"
