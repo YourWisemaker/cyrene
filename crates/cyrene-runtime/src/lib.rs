@@ -1,8 +1,19 @@
-//! `cyrene-runtime`: the Tokio daemon, supervisor, and crash-restore runtime for Cyrene.
+//! `cyrene-runtime`: the Agent_Loop integration, daemon, and supervisor.
 //!
-//! Placeholder scaffold (task 1). The real implementation lands in a later task;
-//! for now the crate exposes only a subsystem identifier so the workspace
-//! compiles and `cargo test` has something to run.
+//! This crate wires Cyrene's subsystems into the running agent. Task 13 builds
+//! the [`AgentLoop`] — the spine that composes the safety pipeline (injection
+//! scanning, planning, shadow execution, the approval gate, real execution,
+//! State_Tree checkpoints, and signed Receipt_Ledger entries) into one
+//! unskippable request lifecycle. Later tasks add the Tokio daemon, service
+//! registration, and the crash-restore supervisor.
+
+mod agent_loop;
+mod error;
+
+pub use agent_loop::{
+    AgentLoop, ApprovalResponder, Executor, Planner, StepDisposition, StepOutput, TurnOutcome,
+};
+pub use error::LoopError;
 
 /// Returns the stable identifier of this subsystem crate.
 #[must_use]

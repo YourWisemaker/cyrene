@@ -316,6 +316,17 @@ version = "0.1.0"
 [[package]]
 name = "cyrene-runtime"
 version = "0.1.0"
+dependencies = [
+ "cyrene-config",
+ "cyrene-core",
+ "cyrene-ledger",
+ "cyrene-safety",
+ "cyrene-state",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "cyrene-safety"

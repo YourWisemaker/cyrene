@@ -13,3 +13,14 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+cyrene-core = { path = "../cyrene-core" }
+cyrene-ledger = { path = "../cyrene-ledger" }
+cyrene-state = { path = "../cyrene-state" }
+cyrene-safety = { path = "../cyrene-safety" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+cyrene-config = { path = "../cyrene-config" }
