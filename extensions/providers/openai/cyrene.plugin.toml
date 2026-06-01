@@ -1,0 +1,9 @@
+name = "openai"
+version = "0.1.0"
+description = "OpenAI model provider (GPT-4o, GPT-4, GPT-3.5, etc.)"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["OPENAI_API_KEY", "OPENAI_BASE_URL"]

@@ -1,0 +1,9 @@
+# Default reviewers for the Cyrene project.
+
+* @cyrene-agent/core-team
+
+crates/cyrene-core/ @cyrene-agent/core-team
+crates/cyrene-safety/ @cyrene-agent/security-team
+crates/cyrene-models/ @cyrene-agent/models-team
+crates/cyrene-sdk/ @cyrene-agent/ecosystem-team
+crates/cyrene-cli/ @cyrene-agent/core-team

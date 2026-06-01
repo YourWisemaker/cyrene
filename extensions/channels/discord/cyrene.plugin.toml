@@ -1,0 +1,9 @@
+name = "discord"
+version = "0.1.0"
+description = "Discord bot channel"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["DISCORD_BOT_TOKEN"]

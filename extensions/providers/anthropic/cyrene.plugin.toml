@@ -1,0 +1,9 @@
+name = "anthropic"
+version = "0.1.0"
+description = "Anthropic Claude model provider"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["ANTHROPIC_API_KEY"]

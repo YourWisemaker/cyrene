@@ -1,0 +1,16 @@
+[package]
+name = "cyrene-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+cyrene-config = { path = "../crates/cyrene-config" }
+cyrene-core = { path = "../crates/cyrene-core" }
+cyrene-skills = { path = "../crates/cyrene-skills" }
+cyrene-tools = { path = "../crates/cyrene-tools" }
+serde_json = { workspace = true }

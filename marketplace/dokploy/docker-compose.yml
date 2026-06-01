@@ -1,0 +1,22 @@
+# Cyrene deployment template for Dokploy (R35).
+
+services:
+  cyrene:
+    image: cyrene/cyrene:latest
+    container_name: cyrene-agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - cyrene-data:/home/cyrene/.cyrene/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUST_LOG=info
+    healthcheck:
+      test: ["CMD", "cyrene", "doctor"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  cyrene-data:

@@ -22,10 +22,16 @@
 //! the caller for ledger logging (R2.2, R2.4). Concrete providers/channels live
 //! in other crates, so the registry stays decoupled from them through the
 //! factory abstraction — they register from the outside with no core change.
+//!
+//! The [`extension_loader`] module (R31) discovers extensions from a configured
+//! directory, parses and validates `cyrene.plugin.toml` manifests, checks host
+//! compatibility, and reports discovered extensions for the `extensions list`
+//! command.
 
 mod autonomy;
 mod config;
-mod error;
+pub mod error;
+pub mod extension_loader;
 mod registry;
 mod secrets;
 
@@ -34,12 +40,14 @@ pub use config::{
     AliasMap, ChannelEntry, ComponentRef, Config, MemoryEntry, ProviderEntry, TypeAliasMap,
 };
 pub use error::ConfigError;
+pub use extension_loader::{
+    discover_extensions, format_extension_list, ExtensionInfo, ExtensionLoadReport,
+};
 pub use registry::{
     BoxError, BuildContext, ComponentKey, ComponentKind, LoadError, LoadFailure, PluginRegistry,
 };
 pub use secrets::SecretResolver;
 
-/// Returns the stable identifier of this subsystem crate.
 #[must_use]
 pub fn subsystem() -> &'static str {
     "cyrene-config"

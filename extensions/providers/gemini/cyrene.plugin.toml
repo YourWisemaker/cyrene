@@ -1,0 +1,9 @@
+name = "gemini"
+version = "0.1.0"
+description = "Google Gemini model provider"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["GEMINI_API_KEY", "GOOGLE_API_KEY"]

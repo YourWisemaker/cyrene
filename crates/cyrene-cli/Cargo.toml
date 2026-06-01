@@ -9,7 +9,6 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
-# The single installable binary is named `cyrene`.
 [[bin]]
 name = "cyrene"
 path = "src/main.rs"
@@ -18,3 +17,13 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
+cyrene-core = { path = "../cyrene-core" }
+cyrene-config = { path = "../cyrene-config" }
+cyrene-sdk = { path = "../cyrene-sdk" }
+clap = { version = "~4.4", features = ["derive"] }
+dialoguer = "0.11"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+dirs = { workspace = true }
+tokio = { workspace = true }

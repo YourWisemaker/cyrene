@@ -1,0 +1,9 @@
+name = "email"
+version = "0.1.0"
+description = "Email channel (IMAP/SMTP and Gmail push)"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["EMAIL_HOST", "EMAIL_USER", "EMAIL_PASSWORD", "GMAIL_CREDENTIALS_FILE"]

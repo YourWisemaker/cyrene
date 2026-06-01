@@ -1,0 +1,9 @@
+name = "signal"
+version = "0.1.0"
+description = "Signal messenger channel"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["SIGNAL_PHONE_NUMBER"]

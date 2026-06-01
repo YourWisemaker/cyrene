@@ -1,0 +1,11 @@
+name = "git-integration"
+version = "0.1.0"
+description = "MCP server for advanced Git operations (blame, bisect, worktrees)"
+capabilities = ["tool"]
+host_compat = ">=0.1.0"
+
+[permissions]
+filesystem_paths = ["*"]
+
+[tools]
+provides = ["git.blame", "git.bisect", "git.worktree"]

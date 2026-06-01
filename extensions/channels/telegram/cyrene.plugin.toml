@@ -1,0 +1,9 @@
+name = "telegram"
+version = "0.1.0"
+description = "Telegram bot channel"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["TELEGRAM_BOT_TOKEN"]

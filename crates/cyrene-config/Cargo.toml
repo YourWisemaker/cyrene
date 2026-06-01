@@ -14,13 +14,13 @@ workspace = true
 
 [dependencies]
 cyrene-core = { path = "../cyrene-core" }
+cyrene-sdk = { path = "../cyrene-sdk" }
 serde = { workspace = true }
 toml = { workspace = true }
 dotenvy = { workspace = true }
 dirs = { workspace = true }
 thiserror = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
-# Used only by registry unit tests to implement the async Channel/Memory/Model
-# traits with small fakes; the registry itself never awaits trait methods.
 async-trait = { workspace = true }

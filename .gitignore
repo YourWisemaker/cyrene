@@ -25,13 +25,22 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Node (if any JS tooling used locally)
+node_modules/
+package-lock.json
+package.json
+
+# Nix
+result
+
+# Fuzz
+fuzz/corpus/
+fuzz/artifacts/
+
 # Logs / temp
 *.log
 tmp/
 .kiro/tmp-*
-
-# Private / local-only notes (never publish)
-conversation-with-gemini.md
 
 # Kiro spec/workspace metadata — local only, never publish
 .kiro/

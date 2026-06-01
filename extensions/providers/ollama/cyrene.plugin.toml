@@ -1,0 +1,9 @@
+name = "ollama"
+version = "0.1.0"
+description = "Local Ollama model provider (Llama, Mistral, etc.)"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["OLLAMA_BASE_URL", "OLLAMA_API_KEY"]

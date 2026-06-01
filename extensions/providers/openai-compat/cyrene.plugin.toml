@@ -1,0 +1,9 @@
+name = "openai-compat"
+version = "0.1.0"
+description = "Generic OpenAI-compatible model provider (DeepSeek, xAI, Groq, self-hosted)"
+capabilities = ["model_provider"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["DEEPSEEK_API_KEY", "GROQ_API_KEY", "XAI_API_KEY", "TOGETHER_API_KEY", "FIREWORKS_API_KEY"]

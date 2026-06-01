@@ -1,0 +1,32 @@
+name: Sync Marketplace Templates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marketplace/**'
+      - 'docker/**'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Sync templates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate marketplace templates
+        run: |
+          echo "Checking marketplace templates..."
+          for dir in marketplace/*/; do
+            if [ ! -f "${dir}docker-compose.yml" ]; then
+              echo "ERROR: ${dir} missing docker-compose.yml"
+              exit 1
+            fi
+            echo "✓ ${dir}"
+          done
+      - name: Report changes
+        run: |
+          echo "Marketplace templates validated successfully."
+          echo "Templates are ready for platform-specific deployment."

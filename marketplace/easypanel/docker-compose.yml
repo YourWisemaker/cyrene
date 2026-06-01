@@ -1,0 +1,17 @@
+# Cyrene deployment template for EasyPanel (R35).
+
+services:
+  cyrene:
+    image: cyrene/cyrene:latest
+    container_name: cyrene-agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - cyrene-data:/home/cyrene/.cyrene/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUST_LOG=info
+
+volumes:
+  cyrene-data:

@@ -1,0 +1,9 @@
+name = "matrix"
+version = "0.1.0"
+description = "Matrix chat channel"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["MATRIX_ACCESS_TOKEN", "MATRIX_HOMESERVER_URL"]

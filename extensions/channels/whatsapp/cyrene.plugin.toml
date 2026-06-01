@@ -1,0 +1,9 @@
+name = "whatsapp"
+version = "0.1.0"
+description = "WhatsApp channel via Meta Business API"
+capabilities = ["channel"]
+host_compat = ">=0.1.0"
+
+[permissions]
+network = true
+secrets = ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"]
