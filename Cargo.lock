@@ -278,6 +278,7 @@ name = "cyrene-state"
 version = "0.1.0"
 dependencies = [
  "cyrene-core",
+ "proptest",
  "rusqlite",
  "serde",
  "serde_json",
