@@ -276,6 +276,16 @@ version = "0.1.0"
 [[package]]
 name = "cyrene-state"
 version = "0.1.0"
+dependencies = [
+ "cyrene-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "uuid",
+]
 
 [[package]]
 name = "cyrene-trajectory"
