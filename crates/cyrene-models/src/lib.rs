@@ -1,5 +1,6 @@
 //! `cyrene-models`: Model_Provider integrations for Cyrene.
 
+pub mod budget_guard;
 pub mod providers;
 pub mod router;
 
@@ -8,6 +9,7 @@ use cyrene_core::Model;
 use providers::*;
 use std::sync::Arc;
 
+pub use budget_guard::{BudgetAction, BudgetGuard};
 pub use router::{EscalationEvent, ModelRouter, RouterError};
 
 /// Creates a provider instance by its config `type_name`.
