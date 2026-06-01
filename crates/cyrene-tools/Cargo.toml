@@ -1,0 +1,23 @@
+[package]
+name = "cyrene-tools"
+description = "The Tool_Registry, built-in tools, and MCP client for Cyrene."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cyrene-core = { path = "../cyrene-core" }
+cyrene-compress = { path = "../cyrene-compress" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

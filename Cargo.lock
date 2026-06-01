@@ -433,6 +433,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyrene-tools"
+version = "0.1.0"
+dependencies = [
+ "cyrene-compress",
+ "cyrene-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "cyrene-trajectory"
 version = "0.1.0"
 dependencies = [
