@@ -19,7 +19,9 @@
 //! actions. On a failed step, it reports the failure and withholds real
 //! execution.
 
+pub mod approval_gate;
 pub mod autonomy;
+pub mod injection_scanner;
 pub mod sandbox;
 pub mod shadow_executor;
 
@@ -32,6 +34,13 @@ pub use shadow_executor::{
 };
 
 pub use autonomy::{AutonomyDecision, AutonomyPolicy, RiskClassifier};
+
+pub use approval_gate::{
+    ApprovalError, ApprovalGate, ApprovalId, ApprovalRequest, ApprovalResponse, ApprovalStatus,
+    PendingApproval,
+};
+
+pub use injection_scanner::{ContentSource, Detection, InjectionScanner, ScanResult};
 
 #[cfg(target_os = "macos")]
 pub use sandbox::confinement::SeatbeltConfinement;

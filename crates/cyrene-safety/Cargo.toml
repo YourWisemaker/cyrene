@@ -18,6 +18,10 @@ cyrene-config = { path = "../cyrene-config" }
 thiserror.workspace = true
 tempfile.workspace = true
 tracing = "0.1"
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

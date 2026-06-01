@@ -269,13 +269,16 @@ version = "0.1.0"
 name = "cyrene-safety"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "cyrene-config",
  "cyrene-core",
  "proptest",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
