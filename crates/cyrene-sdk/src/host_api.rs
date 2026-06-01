@@ -72,9 +72,10 @@ impl HostApi {
     /// workspace-relative path (R31.7).
     #[must_use]
     pub fn can_access_path(&self, path: &str) -> bool {
-        self.permissions.filesystem_paths.iter().any(|p| {
-            path.starts_with(p) || p == "*"
-        })
+        self.permissions
+            .filesystem_paths
+            .iter()
+            .any(|p| path.starts_with(p) || p == "*")
     }
 
     /// Checks whether the extension has network permission (R31.7).
@@ -137,9 +138,7 @@ mod tests {
 
     #[test]
     fn has_network_checks_permission() {
-        let api_no = HostApi::new(
-            "0.1.0", "ext", Permissions::default(),
-        );
+        let api_no = HostApi::new("0.1.0", "ext", Permissions::default());
         assert!(!api_no.has_network());
 
         let api_yes = HostApi::new(

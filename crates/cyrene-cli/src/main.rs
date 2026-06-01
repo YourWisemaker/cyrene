@@ -189,7 +189,11 @@ fn cmd_extensions_list() {
 
     match cyrene_config::discover_extensions(&extensions_dir, cyrene_sdk::SDK_VERSION) {
         Ok(report) => {
-            println!("Extensions ({} loaded, {} skipped):\n", report.loaded_count(), report.skipped_count());
+            println!(
+                "Extensions ({} loaded, {} skipped):\n",
+                report.loaded_count(),
+                report.skipped_count()
+            );
             let list = cyrene_config::format_extension_list(&report);
             for ext in &list {
                 let status = if ext.get("enabled").map(|s| s.as_str()) == Some("yes") {
@@ -217,9 +221,7 @@ fn cmd_extensions_list() {
 }
 
 fn cmd_skills_list() {
-    let skills_dir = std::env::current_dir()
-        .unwrap_or_default()
-        .join("skills");
+    let skills_dir = std::env::current_dir().unwrap_or_default().join("skills");
 
     if !skills_dir.exists() {
         println!("No bundled skills found.");
@@ -282,7 +284,11 @@ fn cmd_model_list() {
 
     println!("Configured Model Providers:\n");
     for p in config.providers() {
-        let tier = p.entry.tier.map(|t| format!("{t:?}")).unwrap_or_else(|| "Local".to_owned());
+        let tier = p
+            .entry
+            .tier
+            .map(|t| format!("{t:?}"))
+            .unwrap_or_else(|| "Local".to_owned());
         let model = p.entry.model.as_deref().unwrap_or("(default)");
         println!("  {}.{} — {} [{}]", p.type_name, p.alias, model, tier);
     }
@@ -315,7 +321,11 @@ fn cmd_catalog_list() {
                                     ext.name,
                                     ext.version,
                                     ext.description,
-                                    ext.capabilities.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(", ")
+                                    ext.capabilities
+                                        .iter()
+                                        .map(|c| c.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ")
                                 );
                                 found = true;
                             }
@@ -338,7 +348,9 @@ fn main() {
     match cli.command {
         None => {
             print_banner();
-            println!("Run `cyrene --help` for available commands, or `cyrene onboard` to get started.");
+            println!(
+                "Run `cyrene --help` for available commands, or `cyrene onboard` to get started."
+            );
         }
         Some(cmd) => match cmd {
             Commands::Agent => {
@@ -384,7 +396,13 @@ fn main() {
                                 if path.is_dir() {
                                     let name = path.file_name().unwrap().to_string_lossy();
                                     let count = std::fs::read_dir(&path)
-                                        .map(|e| e.flatten().filter(|f| f.path().extension().is_some_and(|e| e == "md")).count())
+                                        .map(|e| {
+                                            e.flatten()
+                                                .filter(|f| {
+                                                    f.path().extension().is_some_and(|e| e == "md")
+                                                })
+                                                .count()
+                                        })
                                         .unwrap_or(0);
                                     println!("  {} ({} skills)", name, count);
                                 }
@@ -411,7 +429,12 @@ fn main() {
             },
             Commands::Cron { action } => match action {
                 CronAction::List => cmd_cron_list(),
-                CronAction::Add { name, schedule, task, channel } => {
+                CronAction::Add {
+                    name,
+                    schedule,
+                    task,
+                    channel,
+                } => {
                     println!("Adding cron job: {name}");
                     println!("  Schedule: {schedule}");
                     println!("  Task: {task}");
@@ -445,15 +468,15 @@ fn main() {
 fn run_onboarding() {
     println!("Welcome to Cyrene! Let's get you set up.\n");
 
-    let cyrene_dir = dirs::home_dir()
-        .unwrap_or_default()
-        .join(".cyrene");
+    let cyrene_dir = dirs::home_dir().unwrap_or_default().join(".cyrene");
     if !cyrene_dir.exists() {
         let _ = std::fs::create_dir_all(&cyrene_dir);
     }
 
     println!("Step 1: Configure a Model Provider");
-    println!("  Supported providers: openai, anthropic, openrouter, gemini, ollama, openai-compat\n");
+    println!(
+        "  Supported providers: openai, anthropic, openrouter, gemini, ollama, openai-compat\n"
+    );
 
     let providers = vec![
         "ollama (local, free — recommended to start)",
@@ -560,8 +583,16 @@ medium = "approval"
 high = "blocked"
 command_allowlist = ["git", "ls", "cat"]
 "#,
-        if provider_type == "ollama" { "llama3.1" } else { "default" },
-        if provider_type == "ollama" { "Local" } else { "Premium" },
+        if provider_type == "ollama" {
+            "llama3.1"
+        } else {
+            "default"
+        },
+        if provider_type == "ollama" {
+            "Local"
+        } else {
+            "Premium"
+        },
     );
 
     let config_path = cyrene_dir.join("config.toml");

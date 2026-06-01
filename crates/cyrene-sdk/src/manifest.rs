@@ -92,9 +92,7 @@ impl ExtensionManifest {
     /// or the host_compat range is invalid.
     pub fn validate(&self) -> Result<(), SdkError> {
         if self.name.is_empty() {
-            return Err(SdkError::ManifestValidation(
-                "name is required".to_owned(),
-            ));
+            return Err(SdkError::ManifestValidation("name is required".to_owned()));
         }
         if self.version.is_empty() {
             return Err(SdkError::ManifestValidation(
@@ -139,19 +137,6 @@ impl ExtensionManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn sample_manifest_toml() -> &'static str {
-        r#"
-name = "test-extension"
-version = "1.0.0"
-description = "A test extension"
-capabilities = ["model_provider"]
-host_compat = ">=0.1.0, <1.0.0"
-
-[network]
-network = true
-"#
-    }
 
     #[test]
     fn parse_valid_manifest() {

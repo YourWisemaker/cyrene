@@ -118,8 +118,9 @@ fn find_manifests(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
     Ok(manifests)
 }
 
-/// Attempts to parse, validate, and check host compatibility of a single
+/// Attempts to parse, validate, and check host compatibility of single
 /// extension manifest.
+#[allow(clippy::result_large_err)]
 fn load_extension_manifest(
     path: &Path,
     host_version: &str,
@@ -206,10 +207,7 @@ pub fn format_extension_list(report: &ExtensionLoadReport) -> Vec<BTreeMap<Strin
             map.insert("name".to_owned(), info.name.clone());
             map.insert("version".to_owned(), info.version.clone());
             map.insert("description".to_owned(), info.description.clone());
-            map.insert(
-                "capabilities".to_owned(),
-                info.capabilities.join(", "),
-            );
+            map.insert("capabilities".to_owned(), info.capabilities.join(", "));
             map.insert(
                 "enabled".to_owned(),
                 if info.enabled { "yes" } else { "no" }.to_owned(),
@@ -280,7 +278,11 @@ host_compat = "<0.1.0"
         assert_eq!(report.loaded_count(), 0);
         assert_eq!(report.skipped_count(), 1);
         assert!(!report.skipped[0].enabled);
-        assert!(report.skipped[0].error.as_ref().unwrap().contains("incompatible"));
+        assert!(report.skipped[0]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("incompatible"));
     }
 
     #[test]

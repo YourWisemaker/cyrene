@@ -9,9 +9,9 @@
 //! through the autonomy/approval pipeline when medium+ risk or irreversible
 //! (R36.4).
 
-mod peripheral;
 mod discovery;
 mod error;
+mod peripheral;
 
 pub use discovery::{discover_peripherals, PeripheralInfo};
 pub use error::HardwareError;

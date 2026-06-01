@@ -18,14 +18,13 @@ pub fn discover_peripherals() -> Result<Vec<PeripheralInfo>, HardwareError> {
 
     #[cfg(feature = "gpio")]
     {
-        let mut peripherals = Vec::new();
-        peripherals.push(PeripheralInfo {
+        let peripherals = vec![PeripheralInfo {
             id: "gpio-default".to_owned(),
             kind: "gpio".to_owned(),
             path: "/dev/gpiochip0".to_owned(),
             description: "Default GPIO controller".to_owned(),
             available: std::path::Path::new("/dev/gpiochip0").exists(),
-        });
+        }];
         return Ok(peripherals);
     }
 
