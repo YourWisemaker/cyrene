@@ -270,6 +270,8 @@ name = "cyrene-safety"
 version = "0.1.0"
 dependencies = [
  "cyrene-core",
+ "proptest",
+ "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",

@@ -11,13 +11,24 @@
 //!   mechanisms (Landlock on Linux, Seatbelt on macOS) with a Docker fallback.
 //! - Denies and reports any write attempt targeting paths outside the boundary.
 //!
-//! The Shadow_Executor (task 6.2) will use this sandbox to run plans safely.
+//! ## Shadow Executor (R3.1, R3.3–R3.6)
+//!
+//! The [`ShadowExecutor`] runs a full plan in the sandbox, intercepts
+//! irreversible/external calls (records, never performs), and produces a
+//! [`ProjectedOutcomeSummary`] listing file changes and would-be external
+//! actions. On a failed step, it reports the failure and withholds real
+//! execution.
 
 pub mod sandbox;
+pub mod shadow_executor;
 
 pub use sandbox::confinement::{platform_confinement, Confinement, NoopConfinement};
 pub use sandbox::error::SandboxError;
 pub use sandbox::{Sandbox, SandboxBackend};
+pub use shadow_executor::{
+    FailedStep, FileChange, FileChangeKind, InterceptedAction, ProjectedOutcomeSummary,
+    ShadowExecutionConfig, ShadowExecutor,
+};
 
 #[cfg(target_os = "macos")]
 pub use sandbox::confinement::SeatbeltConfinement;
