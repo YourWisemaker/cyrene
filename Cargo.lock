@@ -279,6 +279,16 @@ dependencies = [
 [[package]]
 name = "cyrene-hub"
 version = "0.1.0"
+dependencies = [
+ "cyrene-skills",
+ "ed25519-dalek",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "cyrene-ledger"
