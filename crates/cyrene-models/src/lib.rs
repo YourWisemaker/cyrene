@@ -1,11 +1,14 @@
 //! `cyrene-models`: Model_Provider integrations for Cyrene.
 
 pub mod providers;
+pub mod router;
 
 use cyrene_config::{BoxError, ProviderEntry, SecretResolver};
 use cyrene_core::Model;
 use providers::*;
 use std::sync::Arc;
+
+pub use router::{EscalationEvent, ModelRouter, RouterError};
 
 /// Creates a provider instance by its config `type_name`.
 pub fn create_provider(
