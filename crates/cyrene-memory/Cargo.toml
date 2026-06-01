@@ -13,3 +13,16 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+cyrene-core = { path = "../cyrene-core" }
+rusqlite = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }
+cyrene-config = { path = "../cyrene-config" }
+async-trait = { workspace = true }

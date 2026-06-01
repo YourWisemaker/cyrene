@@ -276,6 +276,18 @@ dependencies = [
 [[package]]
 name = "cyrene-memory"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cyrene-config",
+ "cyrene-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "cyrene-models"
@@ -344,6 +356,7 @@ dependencies = [
 name = "cyrene-trajectory"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "serde",
  "serde_json",
 ]
