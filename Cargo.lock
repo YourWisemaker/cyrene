@@ -342,6 +342,12 @@ dependencies = [
 [[package]]
 name = "cyrene-render"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "cyrene-runtime"
