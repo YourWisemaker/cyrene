@@ -17,6 +17,7 @@ cyrene-core = { path = "../cyrene-core" }
 cyrene-ledger = { path = "../cyrene-ledger" }
 cyrene-state = { path = "../cyrene-state" }
 cyrene-safety = { path = "../cyrene-safety" }
+tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
