@@ -37,8 +37,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn discover_returns_empty_when_no_features() {
+    fn discover_returns_correct_result_per_feature() {
         let result = discover_peripherals().unwrap();
+        #[cfg(feature = "gpio")]
+        assert!(!result.is_empty());
+
+        #[cfg(not(any(
+            feature = "gpio",
+            feature = "i2c",
+            feature = "spi",
+            feature = "serial",
+            feature = "all-hardware"
+        )))]
         assert!(result.is_empty());
     }
 }

@@ -44,7 +44,23 @@ mod tests {
     }
 
     #[test]
-    fn no_hardware_by_default() {
+    fn has_hardware_support_matches_features() {
+        #[cfg(any(
+            feature = "gpio",
+            feature = "i2c",
+            feature = "spi",
+            feature = "serial",
+            feature = "all-hardware"
+        ))]
+        assert!(has_hardware_support());
+
+        #[cfg(not(any(
+            feature = "gpio",
+            feature = "i2c",
+            feature = "spi",
+            feature = "serial",
+            feature = "all-hardware"
+        )))]
         assert!(!has_hardware_support());
     }
 }
