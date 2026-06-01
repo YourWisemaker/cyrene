@@ -9,13 +9,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cyrene-agent/cyrene/blob/main/LICENSE">
+  <a href="https://github.com/YourWisemaker/cyrene/blob/master/LICENSE">
     <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License">
   </a>
-  <a href="https://github.com/cyrene-agent/cyrene/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/cyrene-agent/cyrene/ci.yml?branch=main" alt="CI">
+  <a href="https://github.com/YourWisemaker/cyrene/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/YourWisemaker/cyrene/ci.yml?branch=master" alt="CI">
   </a>
-  <a href="https://github.com/cyrene-agent/cyrene">
+  <a href="https://github.com/YourWisemaker/cyrene">
     <img src="https://img.shields.io/badge/Rust-1.82+-orange?logo=rust" alt="Rust">
   </a>
 </p>

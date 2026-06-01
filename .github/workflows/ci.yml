@@ -1,9 +1,9 @@
 name: CI
 
-# Run on pushes to the main branch and on every pull request.
+# Run on pushes to the master branch and on every pull request.
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 # Cancel superseded runs for the same ref to save CI minutes.

@@ -2,7 +2,7 @@ name: Sync Marketplace Templates
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'marketplace/**'
       - 'docker/**'
