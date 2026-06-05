@@ -10,7 +10,7 @@ const BANNER: &str = r#"
    ║  ╚██████╗   ██║   ██║  ██║███████╗██║ ╚████║███████╗
    ║   ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝
    ║                                                   ║
-   ║   Open-source, self-improving autonomous AI agent  ║
+   ║   The AI agent that always loves you                ║
    ╚═══════════════════════════════════════════════════╝
 "#;
 
@@ -18,7 +18,7 @@ const BANNER: &str = r#"
 #[command(
     name = "cyrene",
     version,
-    about = "Cyrene: an open-source, self-improving autonomous AI agent."
+    about = "Cyrene: the AI agent that always loves you."
 )]
 struct Cli {
     #[command(subcommand)]

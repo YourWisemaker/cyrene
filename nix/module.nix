@@ -6,7 +6,7 @@ let
   cfg = config.services.cyrene;
 in {
   options.services.cyrene = {
-    enable = mkEnableOption "Cyrene autonomous AI agent";
+    enable = mkEnableOption "Cyrene — the AI agent that always loves you";
 
     package = mkOption {
       type = types.package;
@@ -49,7 +49,7 @@ in {
     users.groups.${cfg.group} = {};
 
     systemd.services.cyrene = {
-      description = "Cyrene autonomous AI agent";
+      description = "Cyrene — the AI agent that always loves you";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];

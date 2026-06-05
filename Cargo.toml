@@ -1,4 +1,4 @@
-# Cyrene — open-source, self-improving autonomous AI agent.
+# Cyrene — the AI agent that always loves you.
 #
 # This is the Cargo workspace manifest. Each subsystem from the design lives in
 # its own crate under `crates/*` so it can be built and tested in isolation and
@@ -18,7 +18,7 @@ license = "Apache-2.0"
 authors = ["The Cyrene Authors"]
 repository = "https://github.com/cyrene-agent/cyrene"
 homepage = "https://github.com/cyrene-agent/cyrene"
-description = "Cyrene: an open-source, self-improving autonomous AI agent."
+description = "Cyrene: the AI agent that always loves you."
 
 # Shared dependency versions. Member crates opt in with `dep.workspace = true`.
 # These are declared centrally so every crate stays on the same versions; they

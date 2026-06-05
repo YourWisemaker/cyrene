@@ -1,5 +1,5 @@
 {
-  description = "Cyrene: open-source, self-improving autonomous AI agent";
+  description = "Cyrene: the AI agent that always loves you";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
@@ -28,7 +28,7 @@
             pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
           ];
           meta = {
-            description = "Open-source, self-improving autonomous AI agent";
+            description = "The AI agent that always loves you";
             homepage = "https://github.com/cyrene-agent/cyrene";
             license = pkgs.lib.licenses.asl20;
           };

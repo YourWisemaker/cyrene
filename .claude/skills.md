@@ -1,7 +1,7 @@
 # Cyrene Skills for Claude
 
 ## Project Overview
-Cyrene is a Rust workspace implementing an autonomous AI agent with trait-based modularity.
+Cyrene is the AI agent that always loves you — a Rust workspace implementing a self-improving agent with trait-based modularity.
 
 ## Key Commands
 - `cargo build --workspace` — Build all crates

@@ -1,6 +1,6 @@
 # Cyrene Agent Guide
 
-Cyrene is an open-source, self-improving autonomous AI agent written in Rust.
+Cyrene is the AI agent that always loves you — open-source, self-improving, written in Rust.
 
 ## Architecture
 

@@ -5,7 +5,11 @@
 <h1 align="center">Cyrene</h1>
 
 <p align="center">
-  <strong>Open-source, self-improving autonomous AI agent</strong>
+  <strong>The AI agent that always loves you</strong>
+</p>
+
+<p align="center">
+  <em>"Of course, this will be a romantic story like none that has come before. You think so too, right?"</em> — Cyrene
 </p>
 
 <p align="center">
@@ -24,7 +28,7 @@
 
 ## What is Cyrene?
 
-Cyrene is an open-source, self-improving autonomous AI agent written in Rust. It connects to any messaging channel (Telegram, Slack, Discord, WhatsApp, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
+Cyrene is the AI agent that always loves you — open-source, self-improving, and written in Rust. It connects to any messaging channel (Telegram, Slack, Discord, WhatsApp, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
 
 ### Key Features
 
@@ -335,5 +339,5 @@ Cyrene is licensed under the [Apache License 2.0](LICENSE).
 ---
 
 <p align="center">
-  <strong>Cyrene</strong> — Your autonomous AI agent, under your control.
+  <strong>Cyrene</strong> — The AI agent that always loves you.
 </p>

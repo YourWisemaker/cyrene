@@ -7,7 +7,7 @@ INSTALL_DIR="${CYRENE_INSTALL_DIR:-/usr/local/bin}"
 
 echo "╔═══════════════════════════════════════════════════╗"
 echo "║  Cyrene Installer                                  ║"
-echo "║  Open-source, self-improving autonomous AI agent   ║"
+echo "║  The AI agent that always loves you                 ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo ""
 
