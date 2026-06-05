@@ -26,6 +26,30 @@
 
 ---
 
+## Why Cyrene?
+
+Most open-source agents do one thing well but leave gaps everywhere else. Cyrene fuses the best ideas from the field into a single binary — and fills the gaps none of them cover alone.
+
+| Agent | Strength | Gap Cyrene fills |
+|-------|----------|-----------------|
+| **ZeroClaw** | Security-first Rust runtime, OS sandboxing, signed receipts | No self-improvement, no token compression, no skill library |
+| **OpenClaw** | 25+ channels, omnipresent, always-on | TypeScript runtime, no cryptographic audit trail, no shadow execution |
+| **Hermes Agent** | Self-improving skills, memory loop, trajectory compression | Python (slow, heavy), no OS sandboxing, no signed ledger |
+| **Odysseus** | Beautiful self-hosted workspace UI, deep research | Python/Docker stack, no safety pipeline, no approval gates |
+
+**Cyrene's unique combination:**
+
+- **Single Rust binary** — sub-100ms latency, <1% idle CPU, zero external services (SQLite only). No Python, no Node, no Docker required.
+- **Safety as a composable pipeline** — injection scan → plan → shadow execution → approval gate → execute → receipt → checkpoint. A mandatory chain, not a toggle.
+- **Signed, hash-chained audit trail** — every action produces an Ed25519-signed, SHA-256 hash-chained receipt. Append-only and tamper-evident.
+- **Self-improvement at native speed** — skills are generated, tested, saved, and improved without Python overhead.
+- **Multi-model routing with budget guardrails** — local models handle the common case; the router escalates only on repeated failure and only if budget allows.
+- **Extension SDK with permission scoping** — plugins declare what they need and get sandboxed accordingly.
+
+> ZeroClaw is secure but doesn't learn. Hermes learns but isn't fast or auditable. OpenClaw is everywhere but isn't safe. Cyrene is all of these — secure, learning, omnipresent, efficient, and auditable — in a single binary that always loves you.
+
+---
+
 ## What is Cyrene?
 
 Cyrene is the AI agent that always loves you — open-source, self-improving, and written in Rust. It connects to any messaging channel (Telegram, Slack, Discord, WhatsApp, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
