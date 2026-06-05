@@ -34,8 +34,16 @@ package.json
 result
 
 # Fuzz
-fuzz/corpus/
+# The cargo-fuzz build directory is transient.
+fuzz/target/
+# `fuzz/artifacts/` holds raw crash/timeout/oom reproducers that cargo-fuzz
+# writes when a target crashes. They are transient dumps; once a crash is
+# triaged its (minimized) reproducer is copied into `fuzz/corpus/<target>/`
+# and committed so it becomes a permanent, replayed regression case.
 fuzz/artifacts/
+# NOTE: `fuzz/corpus/` is intentionally NOT ignored. It is the retained
+# regression corpus (R38.4): committed crash reproducers and seeds that
+# `cargo fuzz run <target>` replays on every run.
 
 # Logs / temp
 *.log

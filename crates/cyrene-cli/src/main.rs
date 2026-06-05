@@ -30,7 +30,17 @@ enum Commands {
     Agent,
     Gateway,
     Dashboard,
-    Onboard,
+    Onboard {
+        /// Skip interactive prompts and use flags/defaults (for scripts and CI).
+        #[arg(long)]
+        non_interactive: bool,
+        /// Model provider type to configure in non-interactive mode.
+        #[arg(long)]
+        provider: Option<String>,
+        /// Channel type to configure in non-interactive mode.
+        #[arg(long)]
+        channel: Option<String>,
+    },
     Doctor,
     Model {
         #[command(subcommand)]
@@ -175,6 +185,19 @@ fn cmd_doctor() {
         let channels: Vec<_> = config.channels().map(|c| c.alias.to_owned()).collect();
         println!("\n  Configured providers: {}", providers.join(", "));
         println!("  Configured channels: {}", channels.join(", "));
+
+        // Execution backend (R33.5): local by default; a remote backend only
+        // relocates where Steps run — autonomy/sandbox/approval still apply.
+        match config.execution.backend {
+            cyrene_config::ExecutionBackendKind::Local => {
+                println!("\n  Execution backend: local (OS-level sandbox)");
+            }
+            kind => {
+                let boundary = config.execution.remote_workspace().unwrap_or("(unset)");
+                println!("\n  Execution backend: {kind:?} — boundary {boundary}");
+                println!("    (autonomy, sandbox boundary, and approval still apply — R22/R6)");
+            }
+        }
     } else {
         println!("\n  ✗ Could not load config (run `cyrene onboard` first)");
     }
@@ -368,9 +391,13 @@ fn main() {
                 println!("Starting Cyrene dashboard on http://localhost:8080");
                 println!("(Dashboard not yet wired)");
             }
-            Commands::Onboard => {
+            Commands::Onboard {
+                non_interactive,
+                provider,
+                channel,
+            } => {
                 print_banner();
-                run_onboarding();
+                run_onboarding(non_interactive, provider.as_deref(), channel.as_deref());
             }
             Commands::Doctor => {
                 cmd_doctor();
@@ -465,7 +492,7 @@ fn main() {
     }
 }
 
-fn run_onboarding() {
+fn run_onboarding(non_interactive: bool, provider: Option<&str>, channel: Option<&str>) {
     println!("Welcome to Cyrene! Let's get you set up.\n");
 
     let cyrene_dir = dirs::home_dir().unwrap_or_default().join(".cyrene");
@@ -473,6 +500,63 @@ fn run_onboarding() {
         let _ = std::fs::create_dir_all(&cyrene_dir);
     }
 
+    // Non-interactive path for scripts, CI, and the end-to-end smoke test:
+    // pick providers/channels from flags (defaulting to the zero-setup combo of
+    // ollama + cli) without prompting, then write the config (R23.4).
+    let (provider_type, channel_type) = if non_interactive {
+        let provider_type = normalize_provider(provider.unwrap_or("ollama"));
+        let channel_type = normalize_channel(channel.unwrap_or("cli"));
+        println!("Running onboarding non-interactively.");
+        println!("  Provider: {provider_type}");
+        println!("  Channel:  {channel_type}");
+        (provider_type, channel_type)
+    } else {
+        interactive_selection()
+    };
+
+    let config = build_onboarding_config(provider_type, channel_type);
+
+    let config_path = cyrene_dir.join("config.toml");
+    if let Err(e) = std::fs::write(&config_path, &config) {
+        eprintln!("\n  Error writing config: {e}");
+        return;
+    }
+
+    println!("\n✓ Configuration saved to: {}", config_path.display());
+    println!("\nNext steps:");
+    println!("  1. Copy .env.example to .env and add your API keys");
+    println!("  2. Run `cyrene doctor` to verify your setup");
+    println!("  3. Run `cyrene gateway` to start Cyrene");
+    println!("\nHappy automating! 🚀");
+}
+
+/// Maps a free-form provider name to a supported provider type, defaulting to
+/// `ollama` for an unrecognized value.
+fn normalize_provider(name: &str) -> &'static str {
+    match name {
+        "openai" => "openai",
+        "anthropic" => "anthropic",
+        "openrouter" => "openrouter",
+        "gemini" => "gemini",
+        "openai-compat" => "openai-compat",
+        _ => "ollama",
+    }
+}
+
+/// Maps a free-form channel name to a supported channel type, defaulting to
+/// `cli` for an unrecognized value.
+fn normalize_channel(name: &str) -> &'static str {
+    match name {
+        "telegram" => "telegram",
+        "slack" => "slack",
+        "discord" => "discord",
+        _ => "cli",
+    }
+}
+
+/// Runs the interactive provider/channel selection wizard and returns the
+/// chosen provider and channel types.
+fn interactive_selection() -> (&'static str, &'static str) {
     println!("Step 1: Configure a Model Provider");
     println!(
         "  Supported providers: openai, anthropic, openrouter, gemini, ollama, openai-compat\n"
@@ -564,7 +648,14 @@ fn run_onboarding() {
         println!("  Set the appropriate token in your .env file.");
     }
 
-    let config = format!(
+    (provider_type, channel_type)
+}
+
+/// Builds the onboarding `config.toml` contents for the chosen provider and
+/// channel. Kept as a pure function so onboarding output is testable and shared
+/// between the interactive and non-interactive paths.
+fn build_onboarding_config(provider_type: &str, channel_type: &str) -> String {
+    format!(
         r#"# Cyrene configuration — generated by `cyrene onboard`
 # Edit this file to customize your setup.
 
@@ -593,18 +684,5 @@ command_allowlist = ["git", "ls", "cat"]
         } else {
             "Premium"
         },
-    );
-
-    let config_path = cyrene_dir.join("config.toml");
-    if let Err(e) = std::fs::write(&config_path, &config) {
-        eprintln!("\n  Error writing config: {e}");
-        return;
-    }
-
-    println!("\n✓ Configuration saved to: {}", config_path.display());
-    println!("\nNext steps:");
-    println!("  1. Copy .env.example to .env and add your API keys");
-    println!("  2. Run `cyrene doctor` to verify your setup");
-    println!("  3. Run `cyrene gateway` to start Cyrene");
-    println!("\nHappy automating! 🚀");
+    )
 }

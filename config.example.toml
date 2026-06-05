@@ -70,3 +70,35 @@ high = "blocked"       # high-risk steps are blocked until autonomy is raised
 require_gateway_auth = true  # network gateway requires authentication (R22.5)
 # Commands allowed to run without per-step approval (R22.2). Empty by default.
 command_allowlist = ["git", "ls", "cat"]
+
+# -----------------------------------------------------------------------------
+# Remote execution backend  (Requirement 33.5)
+# -----------------------------------------------------------------------------
+# By default Cyrene executes Steps LOCALLY inside the OS-level sandbox. You can
+# instead run Steps on a remote SSH host or a container host, so heavy work runs
+# off this machine. This only changes WHERE a Step runs — the autonomy policy,
+# the workspace-boundary sandbox, and the Approval_Gate above still apply on
+# every backend (R22/R6). There is intentionally no switch to disable gating for
+# a remote backend. Omit this section entirely to keep the secure local default.
+#
+# As everywhere, NO secret values live here: an SSH key is referenced by the
+# NAME of the env var holding its path (`key_env`), resolved from `.env`.
+
+# [execution]
+# backend = "ssh"            # one of: "local" (default), "ssh", "container"
+
+# SSH backend — runs Steps on a remote host, confined to `remote_workspace`.
+# [execution.ssh]
+# host = "build.example.com"
+# user = "cyrene"
+# port = 22
+# key_env = "CYRENE_SSH_KEY"            # env var holding the private-key PATH
+# remote_workspace = "/srv/cyrene/workspace"   # boundary enforced on the remote
+# strict_host_key_checking = true
+
+# Container-host backend — runs Steps inside a container on a Docker host.
+# [execution.container]
+# host = "tcp://10.0.0.5:2376"          # omit for the local Docker socket
+# image = "cyrene/runner:latest"
+# remote_workspace = "/workspace"        # boundary enforced inside the container
+# credential_env = "CYRENE_DOCKER_TLS"  # env var for a TLS cert path, if needed

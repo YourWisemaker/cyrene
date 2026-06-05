@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::autonomy::AutonomyConfig;
 use crate::error::ConfigError;
+use crate::execution::ExecutionConfig;
 
 /// A map of `alias -> entry` for one component `type`.
 pub type AliasMap<T> = BTreeMap<String, T>;
@@ -156,6 +157,10 @@ pub struct Config {
     pub memory: TypeAliasMap<MemoryEntry>,
     /// Autonomy / security policy. Secure-by-default when omitted (R22).
     pub autonomy: AutonomyConfig,
+    /// Remote execution backend. Defaults to local sandboxed execution; a
+    /// remote backend (SSH / container host) relocates where Steps run while
+    /// preserving the autonomy/sandbox/approval constraints (R33.5).
+    pub execution: ExecutionConfig,
 }
 
 impl Config {
@@ -218,7 +223,9 @@ impl Config {
     ///
     /// # Errors
     /// Returns [`ConfigError::MissingSection`] naming the first missing
-    /// required section (`providers`, then `channels`).
+    /// required section (`providers`, then `channels`), or
+    /// [`ConfigError::InvalidExecution`] if a selected remote execution backend
+    /// is missing required settings (R33.5).
     pub fn validate(&self) -> Result<(), ConfigError> {
         if self.providers.is_empty() {
             return Err(ConfigError::MissingSection("providers"));
@@ -226,6 +233,9 @@ impl Config {
         if self.channels.is_empty() {
             return Err(ConfigError::MissingSection("channels"));
         }
+        self.execution
+            .validate()
+            .map_err(ConfigError::InvalidExecution)?;
         Ok(())
     }
 
@@ -278,6 +288,7 @@ impl Config {
                 names.push(env.clone());
             }
         }
+        names.extend(self.execution.referenced_secret_envs());
         names.sort();
         names.dedup();
         names

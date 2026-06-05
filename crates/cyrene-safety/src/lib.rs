@@ -18,9 +18,19 @@
 //! [`ProjectedOutcomeSummary`] listing file changes and would-be external
 //! actions. On a failed step, it reports the failure and withholds real
 //! execution.
+//!
+//! ## Execution Backends (R33.5)
+//!
+//! The [`GatedExecutor`] runs commands on an [`ExecutionBackend`] — local,
+//! SSH, or container host — while applying the [`AutonomyPolicy`] gate
+//! **before** any command is dispatched. Choosing a remote backend changes only
+//! *where* a Step runs, never *whether* it is gated: the autonomy decision is
+//! backend-invariant and the workspace boundary is enforced on the remote
+//! target just as the [`Sandbox`] enforces it locally (R22).
 
 pub mod approval_gate;
 pub mod autonomy;
+pub mod execution;
 pub mod injection_scanner;
 pub mod sandbox;
 pub mod shadow_executor;
@@ -34,6 +44,11 @@ pub use shadow_executor::{
 };
 
 pub use autonomy::{AutonomyDecision, AutonomyPolicy, RiskClassifier};
+
+pub use execution::{
+    ExecutionBackend, ExecutionError, ExecutionOutcome, ExecutionTarget, GatedExecutor,
+    PreparedInvocation,
+};
 
 pub use approval_gate::{
     ApprovalError, ApprovalGate, ApprovalId, ApprovalRequest, ApprovalResponse, ApprovalStatus,

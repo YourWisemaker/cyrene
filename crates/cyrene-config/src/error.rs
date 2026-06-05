@@ -47,6 +47,15 @@ pub enum ConfigError {
     )]
     MissingSecret(String),
 
+    /// The selected remote execution backend is missing required settings.
+    ///
+    /// Selecting an SSH or container-host backend (R33.5) requires its
+    /// `[execution.<backend>]` section with a host/image and a remote workspace
+    /// boundary so the autonomy/sandbox/approval pipeline still has a boundary
+    /// to enforce against.
+    #[error("invalid `[execution]` configuration: {0}")]
+    InvalidExecution(String),
+
     /// The default config path could not be resolved because the user's home
     /// directory is unknown.
     #[error("could not determine the home directory for the default config path (~/.cyrene/config.toml)")]
@@ -57,9 +66,10 @@ impl Recoverable for ConfigError {
     fn recoverability(&self) -> Recoverability {
         match self {
             // The user must create/edit config, set a secret, or fix their env.
-            Self::MissingSection(_) | Self::MissingSecret(_) | Self::NoHomeDir => {
-                Recoverability::UserAction
-            }
+            Self::MissingSection(_)
+            | Self::MissingSecret(_)
+            | Self::InvalidExecution(_)
+            | Self::NoHomeDir => Recoverability::UserAction,
             // A malformed or unreadable file cannot be recovered automatically.
             Self::Io { .. } | Self::Parse { .. } => Recoverability::Halt,
         }

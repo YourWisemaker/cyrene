@@ -31,6 +31,7 @@
 mod autonomy;
 mod config;
 pub mod error;
+mod execution;
 pub mod extension_loader;
 mod registry;
 mod secrets;
@@ -40,6 +41,7 @@ pub use config::{
     AliasMap, ChannelEntry, ComponentRef, Config, MemoryEntry, ProviderEntry, TypeAliasMap,
 };
 pub use error::ConfigError;
+pub use execution::{ContainerBackend, ExecutionBackendKind, ExecutionConfig, SshBackend};
 pub use extension_loader::{
     discover_extensions, format_extension_list, ExtensionInfo, ExtensionLoadReport,
 };

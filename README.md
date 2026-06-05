@@ -215,21 +215,54 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 ### Fuzz Testing
 
+`cargo-fuzz` (libFuzzer) harnesses fuzz every untrusted-input parser. libFuzzer
+requires a nightly toolchain.
+
 ```bash
 cargo install cargo-fuzz
-cargo fuzz run fuzz_config
-cargo fuzz run fuzz_tool_params
+rustup toolchain install nightly
+
+# Available targets: fuzz_config, fuzz_tool_params, fuzz_json_payload, fuzz_skill_parse
+cargo +nightly fuzz run fuzz_config
+cargo +nightly fuzz run fuzz_tool_params
 ```
+
+Crashing inputs are retained as regression cases under `fuzz/corpus/<target>/`
+and replayed on every run. See [`fuzz/README.md`](fuzz/README.md) for the full
+target list and the crash-to-regression workflow.
 
 ---
 
 ## Deployment
+
+See [`docs/deployment.md`](docs/deployment.md) for the full guide: a low-resource
+unattended deployment within the idle budget, and remote execution backends
+(SSH / container host) that preserve autonomy, sandboxing, and approval.
 
 ### Docker
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+
+### Remote execution backend
+
+Run Steps on a remote SSH host or container host instead of locally — without
+loosening any safety constraint. Add an `[execution]` section to `config.toml`:
+
+```toml
+[execution]
+backend = "ssh"            # "local" (default), "ssh", or "container"
+
+[execution.ssh]
+host = "build.example.com"
+key_env = "CYRENE_SSH_KEY"                   # key PATH via env var, never inline
+remote_workspace = "/srv/cyrene/workspace"   # boundary enforced on the remote
+```
+
+Selecting a remote backend changes only *where* a Step runs — the autonomy
+policy, workspace-boundary sandbox, and Approval Gate apply identically on every
+backend. See [`docs/deployment.md`](docs/deployment.md).
 
 ### NixOS
 

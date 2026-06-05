@@ -1,0 +1,82 @@
+# Official Cyrene container-compose definition (R33.1).
+#
+# Runs the Cyrene_Runtime + gateway from the multi-stage image built by
+# `docker/Dockerfile`. All mutable state (SQLite db, ledger, state-tree blobs,
+# skill library) lives under a single mounted volume so it survives container
+# restarts (R33.2). Secrets are read ONLY from the environment / a mounted
+# secrets file — never baked into the image (R33.3).
+#
+# Quick start:
+#
+#     cp .env.example .env        # fill in the secrets you use
+#     docker compose -f docker/docker-compose.yml up -d
+#
+# This file is also tuned for a low-resource, unattended host (a "$5 VPS":
+# 1 vCPU / 512MB–1GB RAM). See docs/deployment.md for the full low-resource
+# unattended deployment guide and how it stays within the Requirement 1 idle
+# budget (≤1% average CPU over any 60s window).
+
+services:
+  cyrene:
+    # Build locally from the repo, or pull the published image instead by
+    # replacing `build` with `image: cyrene/cyrene:latest`.
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: cyrene/cyrene:latest
+    container_name: cyrene-agent
+    restart: unless-stopped
+
+    # The gateway is network-exposed; it requires authentication (R22.5).
+    # Bind to localhost by default so it is not exposed publicly unless the
+    # operator puts a reverse proxy / firewall in front of it.
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    # Single data volume holds ALL mutable state (R33.2).
+    volumes:
+      - cyrene-data:/home/cyrene/.cyrene/data
+      # Optional: mount your edited config (read-only). Secrets are NOT here.
+      # - ./config.toml:/home/cyrene/.cyrene/config.toml:ro
+
+    # Secrets come from the environment / a mounted secrets file (R33.3).
+    # `env_file` keeps secret VALUES out of this committed compose file.
+    env_file:
+      - ../.env
+    environment:
+      - RUST_LOG=info
+
+    # Low-resource caps for an unattended small host. Idle CPU stays well under
+    # the R1 budget because the runtime is event-driven (no busy loops); these
+    # limits simply bound the burst ceiling so a single agent cannot starve a
+    # shared $5 VPS.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+    # `cyrene doctor` reports provider/channel/subsystem status (R23.5); using
+    # it as the healthcheck means an unattended host can restart on failure.
+    healthcheck:
+      test: ["CMD", "cyrene", "doctor"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    # Defense-in-depth for the container itself, complementing the in-process
+    # OS-level sandbox (R22.3): drop privileges and prevent privilege escalation.
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  cyrene-data:

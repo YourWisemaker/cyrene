@@ -27,3 +27,13 @@ serde_json = { workspace = true }
 toml = { workspace = true }
 dirs = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+# The end-to-end smoke test (task 23.3) drives the onboarded runtime: it builds
+# the Agent_Loop from the same safety/audit substrates the daemon wires up, runs
+# a CLI request, and asserts a signed receipt and a checkpoint were recorded.
+cyrene-runtime = { path = "../cyrene-runtime" }
+cyrene-ledger = { path = "../cyrene-ledger" }
+cyrene-state = { path = "../cyrene-state" }
+cyrene-safety = { path = "../cyrene-safety" }
+tempfile = { workspace = true }
