@@ -76,11 +76,14 @@ fn run_doctor(home: &Path) -> String {
 
 /// Builds a `Command` for the Cargo-built `cyrene` binary with a throwaway home
 /// directory, so onboarding writes into the test's temp dir rather than the
-/// real user profile. Sets every home-ish variable `dirs::home_dir()` consults
-/// across Linux/macOS/Windows.
+/// real user profile. Sets `CYRENE_HOME` which the config crate checks first,
+/// plus `HOME`/`USERPROFILE` as fallbacks for any code that still consults
+/// `dirs::home_dir()` directly.
 fn cyrene_command(home: &Path) -> Command {
+    let cyrene_dir = home.join(".cyrene");
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_cyrene"));
     cmd.current_dir(home)
+        .env("CYRENE_HOME", &cyrene_dir)
         .env("HOME", home)
         .env("USERPROFILE", home);
     cmd

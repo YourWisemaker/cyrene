@@ -50,6 +50,25 @@ pub use registry::{
 };
 pub use secrets::SecretResolver;
 
+/// Returns the Cyrene home directory.
+///
+/// Checks the `CYRENE_HOME` environment variable first (useful for tests and
+/// containerized environments where `dirs::home_dir()` may not behave as
+/// expected). Falls back to `dirs::home_dir()` joined with `.cyrene`.
+///
+/// Returns `None` only if neither `CYRENE_HOME` is set nor `dirs::home_dir()`
+/// can determine a home directory.
+#[must_use]
+pub fn cyrene_home_dir() -> Option<std::path::PathBuf> {
+    if let Ok(val) = std::env::var("CYRENE_HOME") {
+        let p = std::path::PathBuf::from(val);
+        if !p.as_os_str().is_empty() {
+            return Some(p);
+        }
+    }
+    dirs::home_dir().map(|h| h.join(".cyrene"))
+}
+
 #[must_use]
 pub fn subsystem() -> &'static str {
     "cyrene-config"

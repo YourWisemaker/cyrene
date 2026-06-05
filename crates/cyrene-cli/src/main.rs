@@ -133,8 +133,7 @@ fn print_banner() {
 fn cmd_doctor() {
     println!("Cyrene Doctor — checking system health\n");
 
-    let home = dirs::home_dir().unwrap_or_default();
-    let cyrene_dir = home.join(".cyrene");
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
 
     let config_path = cyrene_dir.join("config.toml");
     if config_path.exists() {
@@ -495,7 +494,7 @@ fn main() {
 fn run_onboarding(non_interactive: bool, provider: Option<&str>, channel: Option<&str>) {
     println!("Welcome to Cyrene! Let's get you set up.\n");
 
-    let cyrene_dir = dirs::home_dir().unwrap_or_default().join(".cyrene");
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
     if !cyrene_dir.exists() {
         let _ = std::fs::create_dir_all(&cyrene_dir);
     }

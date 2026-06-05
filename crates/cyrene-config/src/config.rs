@@ -170,8 +170,8 @@ impl Config {
     /// Returns [`ConfigError::NoHomeDir`] if the home directory cannot be
     /// determined.
     pub fn default_path() -> Result<PathBuf, ConfigError> {
-        let home = dirs::home_dir().ok_or(ConfigError::NoHomeDir)?;
-        Ok(home.join(".cyrene").join("config.toml"))
+        let cyrene_dir = crate::cyrene_home_dir().ok_or(ConfigError::NoHomeDir)?;
+        Ok(cyrene_dir.join("config.toml"))
     }
 
     /// Loads and validates the config from the default path
