@@ -195,7 +195,10 @@ impl ExecutionBackend {
     #[must_use]
     pub fn is_within_boundary(&self, candidate: &str) -> bool {
         let boundary = normalize_str_path(&self.boundary());
-        let resolved = if Path::new(candidate).is_absolute() {
+        // Use starts_with('/') rather than Path::is_absolute() so that
+        // Unix-style paths like /etc/passwd are treated as absolute on Windows
+        // too (these paths refer to the remote host, not the local OS).
+        let resolved = if candidate.starts_with('/') || Path::new(candidate).is_absolute() {
             normalize_str_path(candidate)
         } else {
             normalize_str_path(&format!("{}/{}", self.boundary(), candidate))
