@@ -166,7 +166,10 @@ fn stamp_owner(fact: Fact, owner: &UserId) -> Fact {
             m
         }
     };
-    map.insert(OWNER_KEY.to_owned(), Value::String(owner.as_str().to_owned()));
+    map.insert(
+        OWNER_KEY.to_owned(),
+        Value::String(owner.as_str().to_owned()),
+    );
     Fact::new(fact.kind, fact.label, Value::Object(map))
 }
 
