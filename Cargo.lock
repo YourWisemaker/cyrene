@@ -467,6 +467,7 @@ dependencies = [
  "async-trait",
  "cyrene-config",
  "cyrene-core",
+ "cyrene-safety",
  "rusqlite",
  "serde",
  "serde_json",

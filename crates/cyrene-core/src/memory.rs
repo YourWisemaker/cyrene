@@ -180,6 +180,20 @@ pub enum MemoryError {
     #[error("invalid memory query: {0}")]
     InvalidQuery(String),
 
+    /// An untrusted fact was refused because it carried prompt-injection
+    /// patterns and must not be persisted into recallable memory (R21).
+    ///
+    /// The string summarizes which detection rules tripped, so the refusal can
+    /// be logged without surfacing the malicious content itself.
+    #[error("memory write quarantined: {0}")]
+    Quarantined(String),
+
+    /// A memory operation was refused because the requesting principal is not
+    /// the owner of the memory. Defends against a hijacked or spoofed session
+    /// manipulating memory it does not own.
+    #[error("memory access unauthorized: {0}")]
+    Unauthorized(String),
+
     /// The underlying storage backend failed.
     #[error("memory backend error: {0}")]
     Backend(String),
@@ -196,6 +210,11 @@ impl Recoverable for MemoryError {
             Self::Backend(_) => Recoverability::Retry,
             // A missing node or bad query needs the caller (or user) to correct.
             Self::NodeNotFound(_) | Self::InvalidQuery(_) => Recoverability::Halt,
+            // A quarantined write is a deliberate security refusal: retrying the
+            // same poisoned content would only fail again.
+            Self::Quarantined(_) => Recoverability::Halt,
+            // An unauthorized access is a security refusal, not a transient fault.
+            Self::Unauthorized(_) => Recoverability::Halt,
             Self::Serialization(_) => Recoverability::Halt,
         }
     }

@@ -42,6 +42,7 @@ Most open-source agents do one thing well but leave gaps everywhere else. Cyrene
 - **Single Rust binary** — sub-100ms latency, <1% idle CPU, zero external services (SQLite only). No Python, no Node, no Docker required.
 - **Safety as a composable pipeline** — injection scan → plan → shadow execution → approval gate → execute → receipt → checkpoint. A mandatory chain, not a toggle.
 - **Signed, hash-chained audit trail** — every action produces an Ed25519-signed, SHA-256 hash-chained receipt. Append-only and tamper-evident.
+- **Memory that can't be poisoned or hijacked** — two independent trust boundaries guard the knowledge graph. Untrusted content (a web page like `evil.com`, tool output) is injection-scanned *before* it can be stored and neutralized on recall, so it can never resurface as a smuggled instruction; and memory is owned by the authenticated user, so a spoofed or hijacked session is refused at the write — only the owner can read or rewrite what Cyrene remembers.
 - **Self-improvement at native speed** — skills are generated, tested, saved, and improved without Python overhead.
 - **Multi-model routing with budget guardrails** — local models handle the common case; the router escalates only on repeated failure and only if budget allows.
 - **Extension SDK with permission scoping** — plugins declare what they need and get sandboxed accordingly.

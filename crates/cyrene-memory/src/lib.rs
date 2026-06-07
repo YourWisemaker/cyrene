@@ -28,6 +28,12 @@ use rusqlite::{Connection, OptionalExtension};
 
 use cyrene_core::{Fact, Memory, MemoryError, MemoryHit, MemoryQuery, NodeId, Relation};
 
+pub mod authz;
+pub mod guard;
+
+pub use authz::{owner_of, AuthorizedMemory};
+pub use guard::{is_untrusted, provenance, GuardedMemory};
+
 /// The schema for the memory graph.
 ///
 /// `nodes` holds entities keyed by a generated id with a `UNIQUE(kind, label)`
