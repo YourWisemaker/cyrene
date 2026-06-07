@@ -143,12 +143,32 @@ impl Default for OutputCompressor {
 /// Strategy 1: Filter noise — remove blank lines, trailing whitespace, common
 /// boilerplate (progress bars, ANSI codes, timestamps in logs).
 fn filter_noise(text: &str) -> String {
-    text.lines()
-        .map(|line| strip_ansi(line).trim_end().to_owned())
-        .filter(|line| !line.is_empty())
-        .filter(|line| !is_progress_line(line))
-        .collect::<Vec<_>>()
-        .join("\n")
+    let mut result = String::with_capacity(text.len());
+    let mut first = true;
+    for line in text.lines() {
+        // Avoid allocating a new String for lines without ANSI escape codes.
+        if line.contains('\x1b') {
+            let stripped = strip_ansi(line);
+            let trimmed = stripped.trim_end();
+            if !trimmed.is_empty() && !is_progress_line(trimmed) {
+                if !first {
+                    result.push('\n');
+                }
+                result.push_str(trimmed);
+                first = false;
+            }
+        } else {
+            let trimmed = line.trim_end();
+            if !trimmed.is_empty() && !is_progress_line(trimmed) {
+                if !first {
+                    result.push('\n');
+                }
+                result.push_str(trimmed);
+                first = false;
+            }
+        }
+    }
+    result
 }
 
 /// Strategy 2: Deduplicate consecutive identical or near-identical lines,
@@ -159,7 +179,7 @@ fn deduplicate_lines(text: &str) -> String {
         return String::new();
     }
 
-    let mut result = Vec::new();
+    let mut result = String::with_capacity(text.len());
     let mut i = 0;
     while i < lines.len() {
         let current = lines[i];
@@ -167,16 +187,23 @@ fn deduplicate_lines(text: &str) -> String {
         while i + count < lines.len() && lines[i + count] == current {
             count += 1;
         }
+        if i > 0 {
+            result.push('\n');
+        }
         if count > 2 {
-            result.push(format!("{current}  [×{count}]"));
+            result.push_str(current);
+            result.push_str(&format!("  [×{count}]"));
         } else {
-            for _ in 0..count {
-                result.push(current.to_owned());
+            for j in 0..count {
+                if j > 0 {
+                    result.push('\n');
+                }
+                result.push_str(current);
             }
         }
         i += count;
     }
-    result.join("\n")
+    result
 }
 
 /// Strategy 3: Group similar lines (e.g. files by directory, errors by type).
@@ -187,9 +214,10 @@ fn group_similar(text: &str) -> String {
     }
 
     // Simple grouping: if many lines share a common prefix, collapse them.
-    let mut prefix_counts: HashMap<String, usize> = HashMap::new();
+    // Use &str slices as keys to avoid per-line String allocations.
+    let mut prefix_counts: HashMap<&str, usize> = HashMap::new();
     for line in &lines {
-        let prefix = line.chars().take(20).collect::<String>();
+        let prefix = char_prefix(line, 20);
         *prefix_counts.entry(prefix).or_insert(0) += 1;
     }
 
@@ -199,20 +227,38 @@ fn group_similar(text: &str) -> String {
     }
 
     // Keep unique lines and collapse repeated-prefix groups.
-    let mut result = Vec::new();
-    let mut seen_prefixes: HashMap<String, usize> = HashMap::new();
+    let mut result = String::with_capacity(text.len());
+    let mut seen_prefixes: HashMap<&str, usize> = HashMap::new();
+    let mut first = true;
     for line in &lines {
-        let prefix = line.chars().take(20).collect::<String>();
-        let count = seen_prefixes.entry(prefix.clone()).or_insert(0);
+        let prefix = char_prefix(line, 20);
+        let count = seen_prefixes.entry(prefix).or_insert(0);
         *count += 1;
-        if *count <= 3 || prefix_counts.get(&prefix).copied().unwrap_or(0) <= 5 {
-            result.push((*line).to_owned());
+        let line_str = if *count <= 3 || prefix_counts.get(prefix).copied().unwrap_or(0) <= 5 {
+            Some((*line).to_owned())
         } else if *count == 4 {
-            let total = prefix_counts.get(&prefix).copied().unwrap_or(0);
-            result.push(format!("  ... ({} more similar lines)", total - 3));
+            let total = prefix_counts.get(prefix).copied().unwrap_or(0);
+            Some(format!("  ... ({} more similar lines)", total - 3))
+        } else {
+            None
+        };
+        if let Some(s) = line_str {
+            if !first {
+                result.push('\n');
+            }
+            result.push_str(&s);
+            first = false;
         }
     }
-    result.join("\n")
+    result
+}
+
+/// Returns a `&str` slice of up to `n` Unicode characters from `s`.
+fn char_prefix(s: &str, n: usize) -> &str {
+    match s.char_indices().nth(n) {
+        Some((i, _)) => &s[..i],
+        None => s,
+    }
 }
 
 /// Strategy 4: Truncate to max_chars, keeping the head and tail.
