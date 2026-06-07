@@ -80,11 +80,54 @@ curl -sSf https://raw.githubusercontent.com/cyrene-agent/cyrene/main/install.sh 
 
 ### Build from Source
 
+**Prerequisites:** Rust 1.82+ with Cargo. If you don't have it yet, install via [rustup](https://rustup.rs):
+
+```bash
+# Linux/macOS — installs rustc + cargo and adds them to your PATH
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"      # or restart your shell
+
+# Verify
+cargo --version
+```
+
+Then build and install the binary:
+
 ```bash
 git clone https://github.com/cyrene-agent/cyrene.git
 cd cyrene
 cargo build --release --bin cyrene
 cp target/release/cyrene /usr/local/bin/
+```
+
+#### If `cp` fails with "Permission denied"
+
+`/usr/local/bin` is usually root-owned, so a plain `cp` can't write there. Pick any one of these:
+
+```bash
+# Option A — install system-wide with elevated privileges
+sudo cp target/release/cyrene /usr/local/bin/
+
+# Option B — install to a user-owned directory (no sudo needed)
+mkdir -p ~/.local/bin
+cp target/release/cyrene ~/.local/bin/
+# Then make sure ~/.local/bin is on your PATH (add to ~/.zshrc or ~/.bashrc):
+export PATH="$HOME/.local/bin:$PATH"
+
+# Option C — let Cargo install it to ~/.cargo/bin (already on PATH after rustup)
+cargo install --path crates/cyrene-cli
+```
+
+### Uninstall
+
+```bash
+# Remove the binary from wherever you installed it:
+sudo rm /usr/local/bin/cyrene     # if installed system-wide
+rm ~/.local/bin/cyrene            # if installed to ~/.local/bin
+cargo uninstall cyrene-cli        # if installed via `cargo install`
+
+# Optionally remove configuration, database, and state:
+rm -rf ~/.cyrene
 ```
 
 ### Docker
