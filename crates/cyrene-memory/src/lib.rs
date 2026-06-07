@@ -31,8 +31,14 @@ use cyrene_core::{Fact, Memory, MemoryError, MemoryHit, MemoryQuery, NodeId, Rel
 pub mod authz;
 pub mod guard;
 
+#[cfg(feature = "redis")]
+pub mod redis;
+
 pub use authz::{owner_of, AuthorizedMemory};
 pub use guard::{is_untrusted, provenance, GuardedMemory};
+
+#[cfg(feature = "redis")]
+pub use redis::RedisMemory;
 
 /// The schema for the memory graph.
 ///

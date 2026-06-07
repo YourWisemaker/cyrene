@@ -46,6 +46,11 @@ tempfile = "3"
 proptest = "1"
 # HTTP client for model provider integrations (R12).
 reqwest = { version = "0.12.4", default-features = false, features = ["json", "rustls-tls"] }
+# Optional, opt-in Redis-backed Memory backend (R16.5). Off by default; pulled
+# in only when a crate enables its `redis` feature. `default-features = false`
+# keeps the dependency lean (we only need the async Tokio driver + an
+# auto-reconnecting connection manager).
+redis = { version = "1", default-features = false, features = ["tokio-comp", "connection-manager"] }
 
 # Shared lint configuration applied to every member crate that declares
 # `[lints] workspace = true`. CI runs `cargo clippy -- -D warnings`, so these

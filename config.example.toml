@@ -57,6 +57,17 @@ allowlist = ["123456789"]
 [memory.sqlite.default]
 path = "~/.cyrene/cyrene.db"
 
+# OPTIONAL: a Redis/Valkey-backed memory graph. This is opt-in twice over, so it
+# never activates unless you both want it AND have a server:
+#   1. Build Cyrene with the backend compiled in:
+#        cargo build --features cyrene-memory/redis
+#   2. Declare the entry below. The `url_env` names the env var (in your `.env`)
+#      that holds the connection URL, e.g. REDIS_URL=redis://127.0.0.1/.
+# Works against vanilla Redis/Valkey — no extra modules required. If the feature
+# is not compiled in, this entry is simply skipped and SQLite stays in charge.
+# [memory.redis.default]
+# url_env = "REDIS_URL"
+
 # -----------------------------------------------------------------------------
 # Autonomy / security policy  (Requirement 22)
 # -----------------------------------------------------------------------------

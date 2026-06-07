@@ -12,6 +12,13 @@ homepage.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Off by default: SQLite is the only built-in backend unless a user explicitly
+# opts in to Redis. Enabling this feature compiles the `RedisMemory` backend and
+# pulls in the async Redis driver. The backend is still only *used* when the
+# user declares a `[memory.redis.<alias>]` entry in their config.
+redis = ["dep:redis", "dep:tokio"]
+
 [dependencies]
 cyrene-core = { path = "../cyrene-core" }
 cyrene-safety = { path = "../cyrene-safety" }
@@ -21,6 +28,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
+redis = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
