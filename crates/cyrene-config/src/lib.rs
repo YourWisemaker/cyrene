@@ -38,7 +38,8 @@ mod secrets;
 
 pub use autonomy::{AutonomyAction, AutonomyConfig};
 pub use config::{
-    AliasMap, ChannelEntry, ComponentRef, Config, MemoryEntry, ProviderEntry, TypeAliasMap,
+    AliasMap, ChannelEntry, ComponentRef, Config, MemoryEntry, ProviderEntry, ToolEntry,
+    TypeAliasMap,
 };
 pub use error::ConfigError;
 pub use execution::{ContainerBackend, ExecutionBackendKind, ExecutionConfig, SshBackend};

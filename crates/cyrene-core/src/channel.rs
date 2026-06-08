@@ -20,6 +20,63 @@ use crate::ids::{ChannelOrigin, UserId};
 /// compared directly against the channel that produced it when routing replies.
 pub type ChannelId = ChannelOrigin;
 
+/// The kind of media an [`Attachment`] carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AttachmentKind {
+    /// A voice note or other audio clip, transcribed to text via a
+    /// speech-to-text tool before the Agent_Loop sees it.
+    Audio,
+    /// A still image.
+    Image,
+    /// A video clip.
+    Video,
+    /// A document or other file.
+    File,
+}
+
+/// A media attachment that arrived alongside an [`InboundMessage`].
+///
+/// Channels that receive voice notes (Telegram, WhatsApp, …) surface them here
+/// with [`AttachmentKind::Audio`]; the Channel_Gateway transcribes audio to
+/// text with a speech-to-text tool (e.g. `stt.transcribe`, backed by ElevenLabs
+/// or Whisper) and folds the transcript into [`InboundMessage::text`] before
+/// the Agent_Loop runs, so downstream code stays text-only (R7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Attachment {
+    /// What kind of media this is.
+    pub kind: AttachmentKind,
+    /// A URL or channel-native handle the runtime fetches the bytes from.
+    pub url: String,
+    /// The MIME type the channel reported, if any (e.g. `"audio/ogg"`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}
+
+impl Attachment {
+    /// Creates an attachment of `kind` referencing `url`.
+    pub fn new(kind: AttachmentKind, url: impl Into<String>) -> Self {
+        Self {
+            kind,
+            url: url.into(),
+            mime_type: None,
+        }
+    }
+
+    /// Sets the reported MIME type.
+    #[must_use]
+    pub fn with_mime(mut self, mime: impl Into<String>) -> Self {
+        self.mime_type = Some(mime.into());
+        self
+    }
+
+    /// Whether this attachment is audio (a voice note) needing transcription.
+    #[must_use]
+    pub fn is_audio(&self) -> bool {
+        matches!(self.kind, AttachmentKind::Audio)
+    }
+}
+
 /// A message received from a [`Channel`], bound for the Agent_Loop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InboundMessage {
@@ -33,6 +90,11 @@ pub struct InboundMessage {
     /// context across channels (R7.5). `None` when the channel is not threaded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread: Option<String>,
+    /// Media attachments (voice notes, images, files) that arrived with the
+    /// message. Audio attachments are transcribed into [`InboundMessage::text`]
+    /// by the gateway before the Agent_Loop runs (R7).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<Attachment>,
 }
 
 impl InboundMessage {
@@ -43,6 +105,7 @@ impl InboundMessage {
             user_id,
             text: text.into(),
             thread: None,
+            attachments: Vec::new(),
         }
     }
 
@@ -51,6 +114,27 @@ impl InboundMessage {
     pub fn with_thread(mut self, thread: impl Into<String>) -> Self {
         self.thread = Some(thread.into());
         self
+    }
+
+    /// Attaches a single media attachment (e.g. a voice note).
+    #[must_use]
+    pub fn with_attachment(mut self, attachment: Attachment) -> Self {
+        self.attachments.push(attachment);
+        self
+    }
+
+    /// Replaces the message's attachments.
+    #[must_use]
+    pub fn with_attachments(mut self, attachments: Vec<Attachment>) -> Self {
+        self.attachments = attachments;
+        self
+    }
+
+    /// Returns the first audio attachment (voice note) needing transcription,
+    /// if any.
+    #[must_use]
+    pub fn voice_note(&self) -> Option<&Attachment> {
+        self.attachments.iter().find(|a| a.is_audio())
     }
 }
 

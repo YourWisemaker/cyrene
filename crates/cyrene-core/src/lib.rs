@@ -27,7 +27,8 @@ mod session;
 
 pub use budget::{Budget, BudgetLimit};
 pub use channel::{
-    Channel, ChannelError, ChannelHealth, ChannelId, InboundMessage, OutboundMessage,
+    Attachment, AttachmentKind, Channel, ChannelError, ChannelHealth, ChannelId, InboundMessage,
+    OutboundMessage,
 };
 pub use error::{CoreError, Recoverability, Recoverable};
 pub use ids::{BranchId, ChannelOrigin, NodeId, PlanId, SessionId, UserId};
