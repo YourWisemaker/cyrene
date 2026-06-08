@@ -37,6 +37,30 @@ tier = "Premium"
 base_url = "https://api.deepseek.com/v1"
 api_key_env = "DEEPSEEK_API_KEY"
 
+# Hosted OpenAI-compatible providers ship as built-in presets: the base URL and
+# a default model are baked in, so you only need a key (and optionally a `model`
+# or `base_url` override). Available types: groq, xai, mistral, deepseek,
+# cohere, qwen, perplexity, moonshot, minimax, together, xiaomi, opencode.
+
+# xAI Grok.
+[providers.xai.grok]
+api_key_env = "XAI_API_KEY"
+
+# Groq — ultra-low-latency inference.
+[providers.groq.fast]
+model = "llama-3.3-70b-versatile"
+api_key_env = "GROQ_API_KEY"
+
+# Xiaomi MiMo (override base_url for a Token Plan regional endpoint).
+[providers.xiaomi.mimo]
+model = "mimo-v2-flash"
+api_key_env = "XIAOMI_API_KEY"
+
+# OpenCode Zen — curated, benchmarked coding models behind one key.
+[providers.opencode.zen]
+model = "claude-sonnet-4-5"
+api_key_env = "OPENCODE_ZEN_API_KEY"
+
 # -----------------------------------------------------------------------------
 # Channels — [channels.<type>.<alias>]  (Requirement 7)
 # -----------------------------------------------------------------------------

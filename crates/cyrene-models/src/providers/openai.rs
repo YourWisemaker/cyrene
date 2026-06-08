@@ -101,6 +101,38 @@ pub(crate) fn build_openai_request(model: &str, req: &ModelRequest) -> OpenAiReq
     }
 }
 
+/// Runs an OpenAI-style `chat/completions` call against `base_url` and parses
+/// the response. Shared by every OpenAI-compatible provider (DeepSeek, Groq,
+/// xAI, Mistral, Together, OpenRouter, …) so the wire plumbing lives in one
+/// place.
+pub(crate) async fn openai_chat_complete(
+    client: &Client,
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    req: &ModelRequest,
+) -> Result<ModelResponse, ModelError> {
+    let body = build_openai_request(model, req);
+    let url = format!("{base_url}/chat/completions");
+    let resp = client
+        .post(&url)
+        .bearer_auth(api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(classify_http_error)?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if status.as_u16() == 429 {
+            return Err(ModelError::RateLimited(text));
+        }
+        return Err(ModelError::Provider(format!("{status}: {text}")));
+    }
+    let data: OpenAiResponse = resp.json().await.map_err(classify_http_error)?;
+    Ok(parse_openai_response(data))
+}
+
 pub(crate) fn parse_openai_response(resp: OpenAiResponse) -> ModelResponse {
     let choice = resp.choices.into_iter().next().unwrap_or(OpenAiChoice {
         message: OpenAiRespMessage {
