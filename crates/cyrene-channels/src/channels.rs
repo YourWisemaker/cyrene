@@ -19,7 +19,8 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use cyrene_core::{
-    Channel, ChannelError, ChannelHealth, ChannelId, InboundMessage, OutboundMessage, UserId,
+    Attachment, AttachmentKind, Channel, ChannelError, ChannelHealth, ChannelId, InboundMessage,
+    OutboundMessage, UserId,
 };
 
 use crate::auth::InboundAuth;
@@ -164,6 +165,11 @@ pub struct RawInbound {
     pub text: String,
     /// The thread/conversation key, if the transport is threaded.
     pub thread: Option<String>,
+    /// A URL/handle for a voice note attached to the message, if any. The
+    /// channel surfaces it; the gateway transcribes it to text via an STT tool
+    /// (e.g. `stt.transcribe`) so a Telegram/WhatsApp voice message becomes a
+    /// normal text request (R7).
+    pub voice_url: Option<String>,
 }
 
 /// A built-in remote channel: a [`Transport`] plus an [`InboundAuth`] gate.
@@ -208,6 +214,9 @@ impl<T: Transport> Channel for RemoteChannel<T> {
                     InboundMessage::new(self.kind.id(), UserId::new(&raw.user_id), raw.text);
                 if let Some(thread) = raw.thread {
                     msg = msg.with_thread(thread);
+                }
+                if let Some(voice_url) = raw.voice_url {
+                    msg = msg.with_attachment(Attachment::new(AttachmentKind::Audio, voice_url));
                 }
                 Ok(Some(msg))
             }
@@ -280,7 +289,28 @@ mod tests {
             user_id: "alice".to_owned(),
             text: "hi".to_owned(),
             thread: Some("t-1".to_owned()),
+            voice_url: None,
         }
+    }
+
+    #[tokio::test]
+    async fn remote_channel_surfaces_voice_note_as_audio_attachment() {
+        let voice_raw = RawInbound {
+            sender_id: "tg:1".to_owned(),
+            user_id: "alice".to_owned(),
+            text: String::new(),
+            thread: None,
+            voice_url: Some("https://tg.example/voice/abc.ogg".to_owned()),
+        };
+        let ch = RemoteChannel::new(
+            RemoteKind::Telegram,
+            StubTransport::with(voice_raw),
+            InboundAuth::with_allowlist(["tg:1"]),
+        );
+        let msg = ch.poll().await.unwrap().expect("authorized message");
+        let voice = msg.voice_note().expect("voice note surfaced");
+        assert!(voice.is_audio());
+        assert_eq!(voice.url, "https://tg.example/voice/abc.ogg");
     }
 
     #[tokio::test]

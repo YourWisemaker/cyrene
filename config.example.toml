@@ -82,6 +82,47 @@ allowlist = ["123456789"]
 path = "~/.cyrene/cyrene.db"
 
 # -----------------------------------------------------------------------------
+# Tools / external integrations — [tools.<type>.<alias>]  (Requirement 28)
+# -----------------------------------------------------------------------------
+# Tools connect Cyrene to external services. Credentials are referenced by
+# env-var NAME only (`api_key_env`); non-secret settings live in `options`.
+# Risk tiers (read vs. money-moving) are enforced by the autonomy gate above.
+
+# Shopify Admin API — read products/orders, adjust inventory, create draft
+# orders. `shop` is your store domain.
+[tools.shopify.store]
+api_key_env = "SHOPIFY_ADMIN_TOKEN"
+options = { shop = "acme.myshopify.com", api_version = "2024-10" }
+
+# ElevenLabs speech-to-text — transcribes Telegram/WhatsApp voice notes to text
+# (set provider = "openai" to use Whisper instead).
+[tools.elevenlabs.voice]
+api_key_env = "ELEVENLABS_API_KEY"
+options = { provider = "elevenlabs", model = "scribe_v1" }
+
+# Crypto wallet — balances are read-only (low risk); send/swap are high risk and
+# always require approval. The signing key is referenced by env-var name.
+[tools.wallet.main]
+api_key_env = "WALLET_SIGNING_KEY"
+options = { rpc_url = "https://eth-mainnet.example/v2", network = "ethereum" }
+
+# Generic marketplace — point `base_url` at a marketplace's REST API.
+[tools.marketplace.listings]
+api_key_env = "MARKETPLACE_API_KEY"
+base_url = "https://api.marketplace.example/v1"
+
+# YouTube Data API — search/read videos & channels, list comments, post a
+# comment (posting is gated by the autonomy policy).
+[tools.youtube.main]
+api_key_env = "YOUTUBE_API_KEY"
+
+# Twitch Helix API — look up streams/channels/users, check live status, send
+# chat, create clips. Helix needs both an OAuth token and a Client-Id.
+[tools.twitch.main]
+api_key_env = "TWITCH_OAUTH_TOKEN"
+options = { client_id = "your-twitch-client-id" }
+
+# -----------------------------------------------------------------------------
 # Autonomy / security policy  (Requirement 22)
 # -----------------------------------------------------------------------------
 # These are the SECURE DEFAULTS and may be omitted entirely. They are shown

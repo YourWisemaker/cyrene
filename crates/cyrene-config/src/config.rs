@@ -141,6 +141,40 @@ impl Default for MemoryEntry {
     }
 }
 
+/// A configured Tool/integration entry under `[tools.<type>.<alias>]`.
+///
+/// Tools are how Cyrene connects to external services (Shopify, ElevenLabs
+/// speech-to-text, crypto wallets, marketplaces, …). Like every other section,
+/// credentials are referenced by environment-variable name only; non-secret
+/// settings (shop domain, chain RPC URL, marketplace base URL) live in
+/// [`ToolEntry::options`] and a base-URL override in [`ToolEntry::base_url`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ToolEntry {
+    /// Name of the environment variable holding this tool's API key/token.
+    /// Resolved from env/`.env`; the value never lives in the config file.
+    pub api_key_env: Option<String>,
+    /// Optional base-URL override (regional endpoint, self-hosted, proxy).
+    pub base_url: Option<String>,
+    /// Arbitrary non-secret options the integration needs, e.g.
+    /// `shop = "acme.myshopify.com"`, `rpc_url = "https://…"`,
+    /// `provider = "elevenlabs"`.
+    pub options: BTreeMap<String, String>,
+    /// Whether this entry is enabled. Defaults to `true`.
+    pub enabled: bool,
+}
+
+impl Default for ToolEntry {
+    fn default() -> Self {
+        Self {
+            api_key_env: None,
+            base_url: None,
+            options: BTreeMap::new(),
+            enabled: true,
+        }
+    }
+}
+
 /// The complete, deserialized contents of the single Cyrene config file.
 ///
 /// All sections default to empty/secure so a partial file still loads; the
@@ -155,6 +189,9 @@ pub struct Config {
     pub channels: TypeAliasMap<ChannelEntry>,
     /// Memory backend declarations keyed `memory.<type>.<alias>`.
     pub memory: TypeAliasMap<MemoryEntry>,
+    /// Tool / external-integration declarations keyed `tools.<type>.<alias>`
+    /// (Shopify, ElevenLabs STT, wallets, marketplaces, …).
+    pub tools: TypeAliasMap<ToolEntry>,
     /// Autonomy / security policy. Secure-by-default when omitted (R22).
     pub autonomy: AutonomyConfig,
     /// Remote execution backend. Defaults to local sandboxed execution; a
@@ -254,6 +291,11 @@ impl Config {
         flatten(&self.memory)
     }
 
+    /// Iterates every declared tool/integration as a flattened [`ComponentRef`].
+    pub fn tools(&self) -> impl Iterator<Item = ComponentRef<'_, ToolEntry>> {
+        flatten(&self.tools)
+    }
+
     /// Looks up a single provider by `type` and `alias`.
     #[must_use]
     pub fn provider(&self, type_name: &str, alias: &str) -> Option<&ProviderEntry> {
@@ -264,6 +306,12 @@ impl Config {
     #[must_use]
     pub fn channel(&self, type_name: &str, alias: &str) -> Option<&ChannelEntry> {
         self.channels.get(type_name).and_then(|m| m.get(alias))
+    }
+
+    /// Looks up a single tool/integration by `type` and `alias`.
+    #[must_use]
+    pub fn tool(&self, type_name: &str, alias: &str) -> Option<&ToolEntry> {
+        self.tools.get(type_name).and_then(|m| m.get(alias))
     }
 
     /// Collects the names of every secret environment variable referenced by
@@ -285,6 +333,11 @@ impl Config {
         }
         for m in self.memory() {
             if let Some(env) = &m.entry.url_env {
+                names.push(env.clone());
+            }
+        }
+        for t in self.tools() {
+            if let Some(env) = &t.entry.api_key_env {
                 names.push(env.clone());
             }
         }
@@ -331,6 +384,40 @@ allowlist = ["123456"]
 [memory.sqlite.default]
 path = "~/.cyrene/cyrene.db"
 "#;
+
+    #[test]
+    fn parses_tools_section_with_options_and_secret() {
+        let toml = r#"
+[tools.shopify.store]
+api_key_env = "SHOPIFY_ADMIN_TOKEN"
+options = { shop = "acme.myshopify.com", api_version = "2024-10" }
+
+[tools.elevenlabs.voice]
+api_key_env = "ELEVENLABS_API_KEY"
+options = { provider = "elevenlabs" }
+
+[tools.wallet.main]
+api_key_env = "WALLET_SIGNING_KEY"
+options = { rpc_url = "https://eth.example/rpc", network = "ethereum" }
+"#;
+        let cfg = Config::parse(toml, "tools.toml").unwrap();
+
+        let shopify = cfg.tool("shopify", "store").unwrap();
+        assert_eq!(shopify.api_key_env.as_deref(), Some("SHOPIFY_ADMIN_TOKEN"));
+        assert_eq!(
+            shopify.options.get("shop").map(String::as_str),
+            Some("acme.myshopify.com")
+        );
+        assert!(shopify.enabled);
+
+        // Every declared tool surfaces, and its secret env is collected for the
+        // doctor check alongside provider/channel/memory secrets.
+        assert_eq!(cfg.tools().count(), 3);
+        let envs = cfg.referenced_secret_envs();
+        assert!(envs.contains(&"SHOPIFY_ADMIN_TOKEN".to_owned()));
+        assert!(envs.contains(&"ELEVENLABS_API_KEY".to_owned()));
+        assert!(envs.contains(&"WALLET_SIGNING_KEY".to_owned()));
+    }
 
     #[test]
     fn parses_type_alias_sections() {

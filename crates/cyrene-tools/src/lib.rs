@@ -14,6 +14,7 @@
 
 mod builtins;
 mod error;
+mod integrations;
 mod mcp;
 mod tool;
 
@@ -22,6 +23,10 @@ pub use builtins::{
     WebFetchTool, WebSearchTool,
 };
 pub use error::ToolError;
+pub use integrations::{
+    create_tool, MarketplaceTool, ShopifyTool, SpeechToTextTool, ToolSettings, TwitchTool,
+    WalletTool, YouTubeTool,
+};
 pub use mcp::{register_mcp_servers, McpConnection, McpLoadFailure, McpToolDescriptor};
 pub use tool::{Tool, ToolInvocation, ToolOutput, ToolRegistry};
 
