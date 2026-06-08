@@ -26,7 +26,15 @@ pub fn create_provider(
         "gemini" => Ok(Arc::new(GeminiProvider::new(alias, entry, secrets)?)),
         "ollama" => Ok(Arc::new(OllamaProvider::new(alias, entry)?)),
         "openai_compat" => Ok(Arc::new(OpenAiCompatProvider::new(alias, entry, secrets)?)),
-        _ => Err(format!("unknown provider type: `{type_name}`").into()),
+        // Every hosted OpenAI-compatible provider (groq, xai, mistral,
+        // deepseek, cohere, qwen, perplexity, moonshot, minimax, together,
+        // xiaomi, opencode, …) is served from the preset table.
+        other => match presets::find(other) {
+            Some(preset) => Ok(Arc::new(PresetProvider::new(
+                preset, alias, entry, secrets,
+            )?)),
+            None => Err(format!("unknown provider type: `{type_name}`").into()),
+        },
     }
 }
 
@@ -179,5 +187,45 @@ mod tests {
             let p = create_provider("openai_compat", "deepseek", &entry, &secrets).unwrap();
             assert_eq!(p.descriptor().alias, "deepseek");
         });
+    }
+
+    #[test]
+    fn preset_providers_with_key_succeed() {
+        let key = "CYRENE_TEST_PRESET_KEY_8_1F";
+        with_fake_key(key, || {
+            let secrets = SecretResolver::from_env();
+            for preset in PRESETS {
+                let entry = ProviderEntry {
+                    tier: Some(Tier::Premium),
+                    api_key_env: Some(key.to_owned()),
+                    ..Default::default()
+                };
+                let p = create_provider(preset.type_name, preset.type_name, &entry, &secrets)
+                    .unwrap_or_else(|e| panic!("preset `{}` failed: {e}", preset.type_name));
+                assert_eq!(p.descriptor().alias, preset.type_name);
+                assert_eq!(p.descriptor().tier, Tier::Premium);
+            }
+        });
+    }
+
+    #[test]
+    fn preset_provider_requires_api_key() {
+        let key = "CYRENE_TEST_PRESET_MISSING_KEY_XYZ";
+        std::env::remove_var(key);
+        let entry = ProviderEntry {
+            api_key_env: Some(key.to_owned()),
+            ..Default::default()
+        };
+        let secrets = SecretResolver::from_env();
+        assert!(create_provider("groq", "g", &entry, &secrets).is_err());
+    }
+
+    #[test]
+    fn preset_type_names_are_unique() {
+        let mut names: Vec<&str> = PRESETS.iter().map(|p| p.type_name).collect();
+        let count = names.len();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), count, "preset type_name values must be unique");
     }
 }
