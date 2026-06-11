@@ -50,18 +50,25 @@ Most open-source agents do one thing well but leave gaps everywhere else. Some a
 
 ## What is Cyrene?
 
-Cyrene is the AI agent that always loves you — open-source, self-improving, and written in Rust. It connects to any messaging channel (Telegram, Slack, Discord, WhatsApp, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
+Cyrene is the AI agent that always loves you — open-source, self-improving, and written in Rust. It connects to any messaging channel (Telegram, WhatsApp, Discord, email, CLI, and more), receives tasks, plans and executes them safely, and improves its own skills over time — all while keeping you in control through a comprehensive safety pipeline.
+
+Cyrene doesn't just answer — she **builds the tools to get things done**. When a task needs computation, scraping, an API call, or automation, she writes a complete Python program, runs it, and saves it as a reusable skill you can re-run or schedule. She curates her own memory, keeps an evolving picture of who you are, and behaves identically whether you reach her from the terminal or from Telegram/WhatsApp.
 
 ### Key Features
 
 - **Trait-based modularity** — swap out any Channel, Memory, Model, or Tool via config
 - **Safety pipeline** — every request flows through: injection scan → plan → shadow execution → approval gate → execute → receipt → checkpoint
+- **Writes her own tools** — generates Python integrations for scraping, APIs, and automation, runs them, interprets the output, and saves the good ones as skills
 - **Self-improvement** — generates, tests, and saves reusable `SKILL.md` definitions
+- **Agent-curated memory + user model** — remembers durable facts and builds a deepening picture of who you are across sessions; the persona is editable via `~/.cyrene/SOUL.md`
+- **Scheduled automations** — natural-language recurring tasks ("every day at 7am, summarize X and message me") run as full agent turns and deliver back to the chat they were set up in
+- **Always-on** — `cyrene service install` registers a background service (launchd on macOS, systemd on Linux) so the scheduler and chatbot keep running across reboots
+- **Same brain on every channel** — CLI, Telegram, and WhatsApp all run the full agent loop (persona, Python execution, memory, scheduling), not a stripped-down echo
+- **Live command menu** — a Claude-style `/` menu filters commands as you type, right in the terminal
 - **Bundled skill library** — 200+ curated skills across 20 categories
 - **Extension SDK** — load custom providers, channels, and tools via `cyrene.plugin.toml`
 - **Hardware integration** — optional GPIO/I2C/SPI/serial support with companion firmware
 - **Signed audit trail** — every action produces a hash-chained, Ed25519-signed receipt
-- **Multi-channel** — CLI, Telegram, Slack, Discord, WhatsApp, email, Signal, Matrix
 - **Multi-model** — OpenAI, Anthropic, Gemini, OpenRouter, Ollama, and any OpenAI-compatible endpoint
 - **Self-hostable** — install via npm, Homebrew, Docker, Nix, PowerShell, or bare-metal; runs on Linux, macOS, Windows, and Raspberry Pi
 
@@ -189,12 +196,17 @@ cyrene doctor      # Check your configuration
 cyrene             # Start chatting (or: cyrene chat)
 ```
 
-Inside the chat, slash commands manage the session without leaving it:
+Inside the chat, a Claude-style `/` menu appears as you type and filters live. Slash commands manage the session without leaving it:
 
 ```text
 /model [name]   Switch provider/model (no arg opens a live picker)
 /models         List configured providers (● = active)
 /connect        Add or update a provider + API key
+/py /run        Run inline Python, or a saved script
+/key NAME val   Save an API key/secret to .env for scripts
+/script /cron   Save the last Python as a skill, or schedule it
+/remember       Save a durable fact; /memories shows what she knows
+/telegram       Connect this chat to Telegram (also /whatsapp)
 /status /usage  Active provider/model and token usage
 /history /save  View or save the transcript
 /retry /undo    Re-run or remove the last exchange
@@ -205,6 +217,34 @@ Inside the chat, slash commands manage the session without leaving it:
 The model picker fetches each provider's catalog live (OpenAI `/v1/models`,
 Ollama `/api/tags`), so you choose from the models your key actually has access
 to — including all OpenCode Go open models.
+
+### Self-learning in action
+
+You don't drive Cyrene with slash commands — you just ask. She writes the
+Python, runs it, learns, and schedules follow-ups on her own:
+
+```text
+you ▸ track the cheapest JOG→Tokyo flights and message me on Telegram every morning at 7
+
+cyrene ▸ (writes a Python scraper, runs it, shows today's result, then:)
+  💾 Saved a reusable skill `flights`.
+  ⏰ Scheduled recurring task `flights` (07:00) — each run I'll think it
+     through and deliver here.
+  💛 noted about you: flies JOG→Tokyo, prefers cheap fares
+```
+
+Recurring tasks created with natural language run as full agent turns (model +
+Python + memory), so a daily job can scrape, reason about what's new, post an
+update, and remember what it learned — not just re-run a static script.
+
+To keep those jobs and bots running across reboots, install the background
+service once:
+
+```bash
+cyrene service install                 # always-on scheduler (launchd/systemd)
+cyrene service install --run telegram  # keep the Telegram bot always-on
+cyrene service status                  # check it
+```
 
 Keep Cyrene current at any time — `cyrene update` re-runs the right installer for
 your platform (PowerShell on Windows, the shell script elsewhere):
@@ -423,10 +463,14 @@ Pre-built templates for self-hosting platforms:
 ## CLI Commands
 
 ```
+cyrene                Start chatting (interactive REPL with live / menu)
 cyrene agent          Start Cyrene in agent mode (interactive chat)
 cyrene chat           Start an interactive chat with Cyrene
+cyrene telegram       Run the Telegram bot (full agent loop)
+cyrene whatsapp       Run the WhatsApp Cloud API bridge (full agent loop)
 cyrene gateway        Start the runtime gateway
 cyrene dashboard      Start the web dashboard
+cyrene service ...    Install/uninstall/status an always-on background service
 cyrene onboard        Run the setup wizard
 cyrene doctor         Check system health
 cyrene model list     List configured model providers
@@ -435,6 +479,8 @@ cyrene extensions list List installed extensions
 cyrene catalog list   List optional components
 cyrene tools list     List available tools
 cyrene cron list      List scheduled jobs
+cyrene cron run       Run the scheduler in the foreground
+cyrene cron run-once  Fire a single job now (for testing)
 cyrene update         Update to the latest release (--check to only check)
 cyrene version        Show installed and latest version
 ```
