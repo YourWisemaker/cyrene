@@ -27,6 +27,9 @@ pub struct CronJob {
     pub task: String,
     /// The channel to deliver output on.
     pub channel: String,
+    /// What to run: `"script"` (a saved Python file named by `task`) or
+    /// `"agent"` (run `task` as a prompt through a full agent turn).
+    pub kind: String,
     /// The last time this job was executed (if ever).
     pub last_run: Option<DateTime<Utc>>,
 }
@@ -57,8 +60,19 @@ CREATE TABLE IF NOT EXISTS cron_jobs (
     schedule TEXT NOT NULL,
     task     TEXT NOT NULL,
     channel  TEXT NOT NULL,
+    kind     TEXT NOT NULL DEFAULT 'script',
     last_run TEXT
 );";
+
+/// Ensures the `kind` column exists on databases created before agentic jobs
+/// were added. The `ALTER TABLE` fails harmlessly when the column is already
+/// present, so this is safe to run on every open.
+fn migrate_kind_column(conn: &Connection) {
+    let _ = conn.execute(
+        "ALTER TABLE cron_jobs ADD COLUMN kind TEXT NOT NULL DEFAULT 'script'",
+        [],
+    );
+}
 
 /// The SQLite-backed cron scheduler.
 #[derive(Debug)]
@@ -74,6 +88,7 @@ impl CronScheduler {
     pub fn open(db_path: impl AsRef<Path>) -> Result<Self, CronError> {
         let conn = Connection::open(db_path)?;
         conn.execute_batch(SCHEMA)?;
+        migrate_kind_column(&conn);
         Ok(Self { conn })
     }
 
@@ -84,6 +99,7 @@ impl CronScheduler {
     pub fn in_memory() -> Result<Self, CronError> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
+        migrate_kind_column(&conn);
         Ok(Self { conn })
     }
 
@@ -99,13 +115,30 @@ impl CronScheduler {
         task: &str,
         channel: &str,
     ) -> Result<(), CronError> {
+        self.upsert_with_kind(name, schedule, task, channel, "script")
+    }
+
+    /// Persists a new cron job (or updates an existing one), specifying the
+    /// job `kind` (`"script"` or `"agent"`).
+    ///
+    /// # Errors
+    /// Returns [`CronError::InvalidSchedule`] if the schedule is malformed, or
+    /// [`CronError::Database`] on a storage failure.
+    pub fn upsert_with_kind(
+        &self,
+        name: &str,
+        schedule: &str,
+        task: &str,
+        channel: &str,
+        kind: &str,
+    ) -> Result<(), CronError> {
         // Validate the schedule expression.
         CronExpr::parse(schedule).map_err(CronError::InvalidSchedule)?;
         self.conn.execute(
-            "INSERT INTO cron_jobs (name, schedule, task, channel)
-             VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(name) DO UPDATE SET schedule=?2, task=?3, channel=?4",
-            rusqlite::params![name, schedule, task, channel],
+            "INSERT INTO cron_jobs (name, schedule, task, channel, kind)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(name) DO UPDATE SET schedule=?2, task=?3, channel=?4, kind=?5",
+            rusqlite::params![name, schedule, task, channel, kind],
         )?;
         Ok(())
     }
@@ -130,7 +163,7 @@ impl CronScheduler {
     /// Returns [`CronError::Database`] on a storage failure.
     pub fn list(&self) -> Result<Vec<CronJob>, CronError> {
         let mut stmt = self.conn.prepare(
-            "SELECT name, schedule, task, channel, last_run FROM cron_jobs ORDER BY name",
+            "SELECT name, schedule, task, channel, kind, last_run FROM cron_jobs ORDER BY name",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok((
@@ -138,13 +171,14 @@ impl CronScheduler {
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
-                row.get::<_, Option<String>>(4)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
             ))
         })?;
 
         let mut jobs = Vec::new();
         for row in rows {
-            let (name, schedule_raw, task, channel, last_run_str) = row?;
+            let (name, schedule_raw, task, channel, kind, last_run_str) = row?;
             let schedule = CronExpr::parse(&schedule_raw).map_err(CronError::InvalidSchedule)?;
             let last_run = last_run_str
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
@@ -155,6 +189,7 @@ impl CronScheduler {
                 schedule_raw,
                 task,
                 channel,
+                kind,
                 last_run,
             });
         }
@@ -216,7 +251,7 @@ impl CronScheduler {
         let row = self
             .conn
             .query_row(
-                "SELECT name, schedule, task, channel, last_run FROM cron_jobs WHERE name = ?1",
+                "SELECT name, schedule, task, channel, kind, last_run FROM cron_jobs WHERE name = ?1",
                 [name],
                 |row| {
                     Ok((
@@ -224,14 +259,15 @@ impl CronScheduler {
                         row.get::<_, String>(1)?,
                         row.get::<_, String>(2)?,
                         row.get::<_, String>(3)?,
-                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
                     ))
                 },
             )
             .optional()?
             .ok_or_else(|| CronError::NotFound(name.to_owned()))?;
 
-        let (name, schedule_raw, task, channel, last_run_str) = row;
+        let (name, schedule_raw, task, channel, kind, last_run_str) = row;
         let schedule = CronExpr::parse(&schedule_raw).map_err(CronError::InvalidSchedule)?;
         let last_run = last_run_str
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
@@ -242,6 +278,7 @@ impl CronScheduler {
             schedule_raw,
             task,
             channel,
+            kind,
             last_run,
         })
     }
@@ -344,5 +381,25 @@ mod tests {
         s.mark_run("j", now).unwrap();
         let job = s.get("j").unwrap();
         assert!(job.last_run.is_some());
+    }
+
+    #[test]
+    fn default_kind_is_script_and_agent_kind_round_trips() {
+        let s = sched();
+        s.upsert("plain", "0 9 * * *", "report", "cli").unwrap();
+        assert_eq!(s.get("plain").unwrap().kind, "script");
+
+        s.upsert_with_kind(
+            "smart",
+            "0 17 * * *",
+            "Summarize today's crypto forum and post an update",
+            "telegram:42",
+            "agent",
+        )
+        .unwrap();
+        let job = s.get("smart").unwrap();
+        assert_eq!(job.kind, "agent");
+        assert_eq!(job.channel, "telegram:42");
+        assert!(job.task.contains("crypto forum"));
     }
 }

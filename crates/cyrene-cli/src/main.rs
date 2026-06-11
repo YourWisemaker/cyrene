@@ -8,6 +8,7 @@ mod chatmem;
 mod crons;
 mod persona;
 mod pyexec;
+mod service;
 mod slash;
 mod telegram;
 mod whatsapp;
@@ -84,6 +85,11 @@ enum Commands {
         #[command(subcommand)]
         action: CronAction,
     },
+    /// Install/manage Cyrene as an always-on background service (scheduler or chatbot).
+    Service {
+        #[command(subcommand)]
+        action: ServiceAction,
+    },
     Tools {
         #[command(subcommand)]
         action: ToolsAction,
@@ -140,6 +146,26 @@ enum CronAction {
     RunOnce {
         #[arg(long)]
         name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum ServiceAction {
+    /// Install and start the background service (default: the scheduler).
+    Install {
+        /// What to run: `cron` (default), `telegram`, or `whatsapp`.
+        #[arg(long, default_value = "cron")]
+        run: String,
+    },
+    /// Stop and remove the background service.
+    Uninstall {
+        #[arg(long, default_value = "cron")]
+        run: String,
+    },
+    /// Show whether the background service is installed and running.
+    Status {
+        #[arg(long, default_value = "cron")]
+        run: String,
     },
 }
 
@@ -965,6 +991,33 @@ fn apply_learned_actions(history: &mut [cyrene_core::ChatMessage]) {
                     );
                 }
             }
+            actions::Action::ScheduleAgent {
+                name,
+                schedule,
+                prompt,
+                channel,
+            } => {
+                let target = if channel.is_empty() { "cli" } else { &channel };
+                let consent = if std::io::stdin().is_terminal() {
+                    use std::io::Write;
+                    print!(
+                        "  ↳ Cyrene wants to schedule a recurring task `{name}` ({schedule} → {target}):\n     “{prompt}”\n    Allow? [y/N] "
+                    );
+                    let _ = std::io::stdout().flush();
+                    let mut a = String::new();
+                    let _ = std::io::stdin().read_line(&mut a);
+                    matches!(a.trim().to_lowercase().as_str(), "y" | "yes")
+                } else {
+                    false
+                };
+                if consent {
+                    if let Err(e) = crons::add_agent(&name, &schedule, &prompt, target) {
+                        eprintln!("  ✗ {e}");
+                    }
+                } else {
+                    println!("  (skipped the recurring task `{name}`)");
+                }
+            }
         }
     }
 
@@ -1696,6 +1749,32 @@ fn main() {
                     }
                 }
             },
+            Commands::Service { action } => {
+                let parse = |run: String| match service::ServiceJob::parse(&run) {
+                    Ok(job) => Some(job),
+                    Err(e) => {
+                        eprintln!("  ✗ {e}");
+                        None
+                    }
+                };
+                match action {
+                    ServiceAction::Install { run } => {
+                        if let Some(job) = parse(run) {
+                            service::install(job);
+                        }
+                    }
+                    ServiceAction::Uninstall { run } => {
+                        if let Some(job) = parse(run) {
+                            service::uninstall(job);
+                        }
+                    }
+                    ServiceAction::Status { run } => {
+                        if let Some(job) = parse(run) {
+                            service::status(job);
+                        }
+                    }
+                }
+            }
             Commands::Tools { action } => match action {
                 ToolsAction::List => cmd_tools_list(),
             },

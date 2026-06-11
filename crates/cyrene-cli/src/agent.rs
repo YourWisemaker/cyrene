@@ -145,6 +145,24 @@ fn apply_actions(reply: &str, origin_channel: &str, history: &mut [ChatMessage])
                     Err(e) => notes.push(format!("⚠️ Couldn't schedule `{name}`: {e}")),
                 }
             }
+            actions::Action::ScheduleAgent {
+                name,
+                schedule,
+                prompt,
+                channel,
+            } => {
+                // A recurring *agent task*: each run is a full agent turn
+                // (thinks, runs Python, learns), delivered back to this chat.
+                let target = resolve_schedule_channel(&channel, origin_channel);
+                let _ = prompt; // stored as the job's task below
+                match crons::add_agent(&name, &schedule, &prompt, &target) {
+                    Ok(()) => notes.push(format!(
+                        "⏰ Scheduled recurring task `{name}` ({schedule}) — each run I'll \
+                         think it through and deliver here. `cyrene cron remove {name}` to stop."
+                    )),
+                    Err(e) => notes.push(format!("⚠️ Couldn't schedule `{name}`: {e}")),
+                }
+            }
         }
     }
 

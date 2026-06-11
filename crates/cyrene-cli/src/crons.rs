@@ -95,6 +95,24 @@ pub fn add(name: &str, schedule_raw: &str, task: &str, channel: &str) -> Result<
     Ok(())
 }
 
+/// Adds (or updates) a recurring *agent task*: `prompt` is run through a full
+/// agent turn (model + Python + learning) on the schedule, delivered to
+/// `channel`. Unlike [`add`], the task is a natural-language prompt, not a
+/// saved script.
+pub fn add_agent(
+    name: &str,
+    schedule_raw: &str,
+    prompt: &str,
+    channel: &str,
+) -> Result<(), String> {
+    let schedule = normalize_schedule(schedule_raw)?;
+    let s = open()?;
+    s.upsert_with_kind(name, &schedule, prompt, channel, "agent")
+        .map_err(|e| e.to_string())?;
+    println!("✓ Scheduled agent task `{name}`: {schedule} (UTC) → {channel}");
+    Ok(())
+}
+
 /// Prints all jobs.
 pub fn list() {
     let Ok(s) = open() else {
@@ -136,7 +154,7 @@ pub fn run_once(name: &str) -> Result<(), String> {
     let s = open()?;
     let job = s.get(name).map_err(|e| e.to_string())?;
     let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-    fire(&rt, &job.task, &job.channel);
+    fire(&rt, &job);
     s.mark_run(name, Utc::now()).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -215,7 +233,7 @@ fn tick(rt: &tokio::runtime::Runtime, s: &CronScheduler, verbose: bool) {
                 if verbose {
                     println!("  cron: firing `{}` → {}", job.name, job.task);
                 }
-                fire(rt, &job.task, &job.channel);
+                fire(rt, &job);
                 let _ = s.mark_run(&job.name, now);
             }
         }
@@ -223,13 +241,36 @@ fn tick(rt: &tokio::runtime::Runtime, s: &CronScheduler, verbose: bool) {
     }
 }
 
-/// Runs a job's script and delivers the captured output to its channel.
-fn fire(rt: &tokio::runtime::Runtime, script: &str, channel: &str) {
-    let report = match run_script(script) {
-        Ok(text) => text,
-        Err(e) => format!("⚠️ Cyrene couldn't run `{script}`: {e}"),
+/// Runs a job and delivers the captured output to its channel. A `script` job
+/// runs its saved Python file; an `agent` job runs its prompt through a full
+/// agent turn (so it can think, scrape, post, and learn on each run).
+fn fire(rt: &tokio::runtime::Runtime, job: &cyrene_events::CronJob) {
+    let report = if job.kind == "agent" {
+        run_agent_job(rt, &job.task, &job.channel)
+    } else {
+        match run_script(&job.task) {
+            Ok(text) => text,
+            Err(e) => format!("⚠️ Cyrene couldn't run `{}`: {e}", job.task),
+        }
     };
-    deliver(rt, channel, &report);
+    deliver(rt, &job.channel, &report);
+}
+
+/// Runs one scheduled agent turn: build the default model, seed the shared
+/// persona prompt, run the task prompt through [`crate::agent::run_turn`], and
+/// return the reply for delivery. Memory/skill learning happens as a side
+/// effect of the turn, exactly as in an interactive session.
+fn run_agent_job(rt: &tokio::runtime::Runtime, prompt: &str, channel: &str) -> String {
+    use cyrene_core::ChatMessage;
+    let Some(model) = crate::build_default_model() else {
+        return "⚠️ Scheduled task skipped: no model provider configured (run `cyrene onboard`)."
+            .to_owned();
+    };
+    let mut history = vec![
+        ChatMessage::system(crate::agent::system_prompt()),
+        ChatMessage::user(prompt),
+    ];
+    rt.block_on(crate::agent::run_turn(&model, &mut history, channel))
 }
 
 /// Resolves and runs a saved script, returning its combined output as the

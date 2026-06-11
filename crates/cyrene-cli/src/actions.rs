@@ -41,6 +41,15 @@ pub enum Action {
         schedule: String,
         channel: String,
     },
+    /// Schedule a recurring *agent task*: a natural-language prompt run through
+    /// a full agent turn on a timer (thinks, runs tools, learns), not a static
+    /// script. The delivery channel defaults to where it was set up.
+    ScheduleAgent {
+        name: String,
+        schedule: String,
+        prompt: String,
+        channel: String,
+    },
 }
 
 /// Parses every action out of a model reply, in document order.
@@ -105,6 +114,25 @@ fn parse_directive(line: &str) -> Option<Action> {
                 } else {
                     channel.to_owned()
                 },
+            })
+        }
+        "automate" | "agenda" => {
+            // Pipe-delimited so the prompt can be free text:
+            // `<name> | <when> | <prompt> [| <channel>]`. The channel is
+            // optional and defaults to wherever the task was set up.
+            let mut p = rest.splitn(4, '|');
+            let name = p.next().unwrap_or("").trim();
+            let when = p.next().unwrap_or("").trim();
+            let prompt = p.next().unwrap_or("").trim();
+            let channel = p.next().unwrap_or("").trim();
+            if name.is_empty() || when.is_empty() || prompt.is_empty() {
+                return None;
+            }
+            Some(Action::ScheduleAgent {
+                name: name.to_owned(),
+                schedule: when.to_owned(),
+                prompt: prompt.to_owned(),
+                channel: channel.to_owned(),
             })
         }
         _ => None,
@@ -200,6 +228,21 @@ mod tests {
             vec![Action::RememberUser(
                 "the user is a Rust engineer who prefers terse replies".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn parses_automate_into_scheduled_agent_task() {
+        let reply = "```cyrene\nautomate: crypto | 17:00 | Summarize new posts in r/crypto and post an update\n```";
+        let actions = parse(reply);
+        assert_eq!(
+            actions,
+            vec![Action::ScheduleAgent {
+                name: "crypto".to_owned(),
+                schedule: "17:00".to_owned(),
+                prompt: "Summarize new posts in r/crypto and post an update".to_owned(),
+                channel: String::new(),
+            }]
         );
     }
 

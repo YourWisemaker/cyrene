@@ -95,7 +95,11 @@ per line). The runtime executes it after your reply:\n\
 - remember_user: <observation> — update your model of who the user is.\n\
 - schedule: <name> <script> <when> [channel]   — run a saved skill on a timer \
 and deliver its output. `when` = daily | hourly | HH:MM | 5-field cron; \
-`channel` = cli | telegram:<chat_id> | discord. (The user is asked to confirm.)\n\n\
+`channel` = cli | telegram:<chat_id> | discord. (The user is asked to confirm.)\n\
+- automate: <name> | <when> | <prompt>   — schedule a recurring *agent task*. \
+Unlike `schedule`, each run is a full turn where you think, run Python, and \
+learn — use this for 'every day, summarize X and post an update'. The prompt \
+is free text; delivery defaults to where it was set up.\n\n\
 Curate proactively — don't wait to be asked. The only thing you must ask the \
 user for is a secret value: tell them to run `/key NAME value` (e.g. \
 /key SKYSCANNER_API_KEY sky_...). Everything else you do yourself.\n\n\
