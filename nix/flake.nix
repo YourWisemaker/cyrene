@@ -29,7 +29,7 @@
           ];
           meta = {
             description = "The AI agent that always loves you";
-            homepage = "https://github.com/cyrene-agent/cyrene";
+            homepage = "https://github.com/YourWisemaker/cyrene";
             license = pkgs.lib.licenses.asl20;
           };
         };

@@ -1,0 +1,7 @@
+# The native binary is downloaded by lib/install.js at install time, never
+# bundled into the published package. Keep these out of the npm tarball.
+bin/cyrene
+bin/cyrene.exe
+*.tar.gz
+*.zip
+*.sha256

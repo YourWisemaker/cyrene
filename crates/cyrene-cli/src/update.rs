@@ -19,6 +19,9 @@ const RELEASES_URL: &str = "https://github.com/YourWisemaker/cyrene/releases";
 /// The official installer, re-run to perform an in-place update.
 const INSTALL_URL: &str =
     "https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh";
+/// The Windows PowerShell installer, re-run to perform an in-place update.
+const INSTALL_PS1_URL: &str =
+    "https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.ps1";
 /// Minimum gap between network checks so the CLI stays snappy and quiet.
 const CHECK_INTERVAL_SECS: u64 = 24 * 60 * 60;
 /// Network checks are best-effort; never let one stall the CLI for long.
@@ -206,10 +209,22 @@ pub fn run_update(check_only: bool) {
     }
 
     println!("  Running the installer…\n");
-    let status = std::process::Command::new("bash")
-        .arg("-c")
-        .arg(format!("curl -fsSL {INSTALL_URL} | bash"))
-        .status();
+    // Hand off to the platform's official installer: PowerShell on Windows,
+    // the POSIX shell script everywhere else.
+    let status = if cfg!(windows) {
+        std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!("irm {INSTALL_PS1_URL} | iex"),
+            ])
+            .status()
+    } else {
+        std::process::Command::new("bash")
+            .arg("-c")
+            .arg(format!("curl -fsSL {INSTALL_URL} | bash"))
+            .status()
+    };
 
     match status {
         Ok(s) if s.success() => {
@@ -220,7 +235,11 @@ pub fn run_update(check_only: bool) {
         }
         Err(e) => {
             eprintln!("\n  ✗ Could not run the installer: {e}");
-            eprintln!("    Update manually: curl -fsSL {INSTALL_URL} | bash");
+            if cfg!(windows) {
+                eprintln!("    Update manually: irm {INSTALL_PS1_URL} | iex");
+            } else {
+                eprintln!("    Update manually: curl -fsSL {INSTALL_URL} | bash");
+            }
         }
     }
 }

@@ -16,8 +16,8 @@ edition = "2021"
 rust-version = "1.82"
 license = "Apache-2.0"
 authors = ["The Cyrene Authors"]
-repository = "https://github.com/cyrene-agent/cyrene"
-homepage = "https://github.com/cyrene-agent/cyrene"
+repository = "https://github.com/YourWisemaker/cyrene"
+homepage = "https://github.com/YourWisemaker/cyrene"
 description = "Cyrene: the AI agent that always loves you."
 
 # Shared dependency versions. Member crates opt in with `dep.workspace = true`.

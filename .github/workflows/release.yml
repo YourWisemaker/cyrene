@@ -1,0 +1,180 @@
+name: Release
+
+# Build prebuilt single-binary artifacts for every supported platform whenever a
+# version tag is pushed, then attach them (plus checksums) to the GitHub Release.
+# These artifacts are what `install.sh`, `install.ps1`, the npm package, and the
+# Homebrew formula all download — so the binary is fetched, never recompiled, on
+# the user's machine.
+on:
+  push:
+    tags:
+      - "v*"
+  # Allow building artifacts on demand without cutting a release (uploads skipped).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY: cyrene
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---- Linux (glibc) ----
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: false
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+          # ---- Linux (musl, fully static — portable across distros) ----
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          # ---- Raspberry Pi 32-bit (armv7 hard-float) ----
+          - target: armv7-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            cross: true
+          # ---- macOS ----
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            cross: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cross: false
+          # ---- Windows ----
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.82.0 --profile minimal
+          rustup default 1.82.0
+          rustup target add ${{ matrix.target }}
+        shell: bash
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --locked
+        shell: bash
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build (cargo)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --bin cyrene --target ${{ matrix.target }}
+        shell: bash
+
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release --bin cyrene --target ${{ matrix.target }}
+        shell: bash
+
+      - name: Package (unix)
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        run: |
+          set -euo pipefail
+          dist="cyrene-${{ matrix.target }}"
+          mkdir -p "$dist"
+          cp "target/${{ matrix.target }}/release/cyrene" "$dist/"
+          cp README.md LICENSE "$dist/" 2>/dev/null || true
+          tar -czf "$dist.tar.gz" "$dist"
+          shasum -a 256 "$dist.tar.gz" > "$dist.tar.gz.sha256" 2>/dev/null \
+            || sha256sum "$dist.tar.gz" > "$dist.tar.gz.sha256"
+        shell: bash
+
+      - name: Package (windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          $dist = "cyrene-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/cyrene.exe" "$dist/"
+          Copy-Item README.md, LICENSE $dist -ErrorAction SilentlyContinue
+          Compress-Archive -Path $dist -DestinationPath "$dist.zip" -Force
+          (Get-FileHash "$dist.zip" -Algorithm SHA256).Hash.ToLower() + "  $dist.zip" `
+            | Out-File -Encoding ascii "$dist.zip.sha256"
+        shell: pwsh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyrene-${{ matrix.target }}
+          path: |
+            cyrene-${{ matrix.target }}.tar.gz
+            cyrene-${{ matrix.target }}.tar.gz.sha256
+            cyrene-${{ matrix.target }}.zip
+            cyrene-${{ matrix.target }}.zip.sha256
+          if-no-files-found: ignore
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p dist
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.sha256' \) \
+            -exec cp {} dist/ \;
+          ls -la dist
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  publish-npm:
+    name: publish npm package
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Sync package version to the release tag
+        working-directory: npm
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          npm version "$version" --no-git-tag-version --allow-same-version
+      - name: Publish (only when NPM_TOKEN is configured)
+        working-directory: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "NPM_TOKEN not set — skipping npm publish."
+            exit 0
+          fi
+          npm publish --access public

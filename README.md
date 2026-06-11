@@ -66,17 +66,40 @@ Cyrene is the AI agent that always loves you — open-source, self-improving, an
 - **Signed audit trail** — every action produces a hash-chained, Ed25519-signed receipt
 - **Multi-channel** — CLI, Telegram, Slack, Discord, WhatsApp, email, Signal, Matrix
 - **Multi-model** — OpenAI, Anthropic, Gemini, OpenRouter, Ollama, and any OpenAI-compatible endpoint
-- **Self-hostable** — Docker, Nix, or bare-metal install
+- **Self-hostable** — install via npm, Homebrew, Docker, Nix, PowerShell, or bare-metal; runs on Linux, macOS, Windows, and Raspberry Pi
 
 ---
 
 ## Quick Start
 
-### One-Line Install (Linux/macOS)
+### Install
+
+**Linux / macOS / Raspberry Pi** — downloads the prebuilt binary for your platform:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh | bash
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.ps1 | iex
+```
+
+**Package managers:**
+
+```bash
+npm install -g cyrene          # npm
+pnpm add -g cyrene             # pnpm
+npx cyrene --help              # run without installing
+brew tap YourWisemaker/cyrene && brew install cyrene   # Homebrew
+nix build github:YourWisemaker/cyrene                  # Nix
+```
+
+**Raspberry Pi:** both 64-bit (aarch64) and 32-bit (armv7) Raspberry Pi OS are
+detected automatically by the install script — no extra flags needed.
+
+See [docs/installation.md](docs/installation.md) for all methods and options.
 
 ### Build from Source
 
