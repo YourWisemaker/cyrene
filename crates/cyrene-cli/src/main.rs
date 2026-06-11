@@ -44,6 +44,8 @@ enum Commands {
         channel: Option<String>,
     },
     Doctor,
+    /// Show the installed version next to the latest published release.
+    Version,
     /// Update Cyrene to the latest release (or just check with `--check`).
     Update {
         /// Only report whether an update is available; don't install it.
@@ -136,6 +138,7 @@ enum CatalogAction {
 
 fn print_banner() {
     println!("{}", BANNER);
+    println!("   v{}\n", update::current_version());
 }
 
 fn cmd_doctor() {
@@ -376,8 +379,11 @@ fn main() {
     let cli = Cli::parse();
 
     // Surface a one-line notice when a newer release exists. Rate-limited to one
-    // network check per day and skipped for `update` itself (which checks live).
-    if !matches!(cli.command, Some(Commands::Update { .. })) {
+    // network check per day and skipped for the commands that already check live.
+    if !matches!(
+        cli.command,
+        Some(Commands::Update { .. } | Commands::Version)
+    ) {
         update::maybe_notify();
     }
 
@@ -414,6 +420,9 @@ fn main() {
             }
             Commands::Doctor => {
                 cmd_doctor();
+            }
+            Commands::Version => {
+                update::show_version();
             }
             Commands::Update { check } => {
                 update::run_update(check);
