@@ -11,7 +11,7 @@ members = ["crates/*"]
 
 # Shared package metadata inherited by every member crate via `*.workspace = true`.
 [workspace.package]
-version = "1.0.6"
+version = "1.0.7"
 edition = "2021"
 rust-version = "1.82"
 license = "Apache-2.0"
