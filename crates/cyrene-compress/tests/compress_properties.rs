@@ -55,8 +55,13 @@ proptest! {
     /// Property 11b: Compression overhead stays within budget.
     ///
     /// For any tool output, compression completes within 10ms (the per-output
-    /// overhead budget from R20.3). This is a timing property — we measure
-    /// wall-clock time and assert it stays under the budget.
+    /// overhead budget from R20.3). This is a timing property, so it must be
+    /// robust to the scheduler/cache noise of shared CI runners: a single
+    /// wall-clock sample can spike from a preemption or page fault even when the
+    /// algorithm is fast. We warm up once, then assert on the *minimum* elapsed
+    /// across several runs — the minimum reflects the true compute cost (a
+    /// genuine O(n²) regression would blow the budget even at its best), while a
+    /// one-off hiccup no longer fails the test.
     ///
     /// **Validates: Requirements 20.3**
     #[test]
@@ -64,16 +69,23 @@ proptest! {
         output in "[a-zA-Z0-9 .,\n:/-]{100,50000}",
     ) {
         let compressor = OutputCompressor::default();
-        let start = Instant::now();
-        let _result = compressor.compress(&output, "bench_tool");
-        let elapsed = start.elapsed();
+
+        // Warm up so the first run's cold caches don't skew the measurement.
+        let _ = compressor.compress(&output, "bench_tool");
+
+        let mut best = std::time::Duration::MAX;
+        for _ in 0..5 {
+            let start = Instant::now();
+            let _result = compressor.compress(&output, "bench_tool");
+            best = best.min(start.elapsed());
+        }
 
         // R20.3: no more than 10ms per output in release; allow 50ms in debug.
         let budget_ms = if cfg!(debug_assertions) { 50 } else { 10 };
         prop_assert!(
-            elapsed.as_millis() <= budget_ms,
-            "Compression took {}ms, exceeding the {}ms budget",
-            elapsed.as_millis(),
+            best.as_millis() <= budget_ms,
+            "Compression took {}ms (best of 5), exceeding the {}ms budget",
+            best.as_millis(),
             budget_ms
         );
     }
