@@ -348,6 +348,8 @@ dependencies = [
  "cyrene-sdk",
  "cyrene-state",
  "dialoguer",
+ "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",
