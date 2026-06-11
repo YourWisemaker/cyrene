@@ -189,7 +189,7 @@ nix build github:YourWisemaker/cyrene
 ```bash
 cyrene onboard     # Interactive setup wizard
 cyrene doctor      # Check your configuration
-cyrene gateway     # Start Cyrene
+cyrene             # Start chatting (or: cyrene chat)
 ```
 
 Keep Cyrene current at any time — `cyrene update` re-runs the right installer for
@@ -409,7 +409,8 @@ Pre-built templates for self-hosting platforms:
 ## CLI Commands
 
 ```
-cyrene agent          Start Cyrene in agent mode
+cyrene agent          Start Cyrene in agent mode (interactive chat)
+cyrene chat           Start an interactive chat with Cyrene
 cyrene gateway        Start the runtime gateway
 cyrene dashboard      Start the web dashboard
 cyrene onboard        Run the setup wizard

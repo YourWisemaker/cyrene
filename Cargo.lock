@@ -343,6 +343,7 @@ dependencies = [
  "cyrene-config",
  "cyrene-core",
  "cyrene-ledger",
+ "cyrene-models",
  "cyrene-runtime",
  "cyrene-safety",
  "cyrene-sdk",

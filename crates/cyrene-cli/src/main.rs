@@ -30,6 +30,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Agent,
+    /// Start an interactive chat with Cyrene.
+    Chat,
     Gateway,
     Dashboard,
     Onboard {
@@ -146,6 +148,10 @@ fn cmd_doctor() {
 
     let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
 
+    // Load secrets from ~/.cyrene/.env so the environment check below reflects
+    // what the agent will actually see at runtime.
+    let _ = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+
     let config_path = cyrene_dir.join("config.toml");
     if config_path.exists() {
         println!("  ✓ Config file found: {}", config_path.display());
@@ -161,14 +167,11 @@ fn cmd_doctor() {
         println!("  ○ Database not yet created (will be created on first run)");
     }
 
-    let env_path = std::env::current_dir().ok().map(|d| d.join(".env"));
-    match env_path {
-        Some(p) if p.exists() => {
-            println!("  ✓ .env file found: {}", p.display());
-        }
-        _ => {
-            println!("  ○ No .env file found (run `cyrene onboard` to add your keys)");
-        }
+    let env_path = cyrene_dir.join(".env");
+    if env_path.exists() {
+        println!("  ✓ .env file found: {}", env_path.display());
+    } else {
+        println!("  ○ No .env file found (run `cyrene onboard` to add your keys)");
     }
 
     if let Ok(config) = cyrene_config::Config::load() {
@@ -375,9 +378,126 @@ fn cmd_catalog_list() {
     }
 }
 
+/// Runs an interactive chat REPL against the configured default model provider.
+///
+/// This is what `cyrene` (no subcommand) and `cyrene agent`/`cyrene chat` launch:
+/// a conversational loop that reads a line from the user, sends the running
+/// conversation to the model, and prints the reply. Secrets are loaded from
+/// `~/.cyrene/.env` so a freshly onboarded setup just works.
+fn run_chat() {
+    use cyrene_core::{ChatMessage, ModelRequest};
+    use std::io::Write;
+
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
+
+    // Seed the process environment from ~/.cyrene/.env so configured
+    // `api_key_env` secrets resolve without the user exporting them by hand.
+    let secrets = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+
+    let config = match cyrene_config::Config::load() {
+        Ok(c) => c,
+        Err(_) => {
+            println!("No configuration found. Run `cyrene onboard` to get started.");
+            return;
+        }
+    };
+
+    // Prefer the provider aliased `default` (what onboarding writes), else the
+    // first one declared.
+    let providers: Vec<_> = config.providers().collect();
+    let Some(chosen) = providers
+        .iter()
+        .find(|p| p.alias == "default")
+        .or_else(|| providers.first())
+    else {
+        println!("No model provider configured. Run `cyrene onboard` first.");
+        return;
+    };
+
+    let model = match cyrene_models::create_provider(
+        chosen.type_name,
+        chosen.alias,
+        chosen.entry,
+        &secrets,
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!(
+                "  ✗ Could not initialize provider `{}.{}`: {e}",
+                chosen.type_name, chosen.alias
+            );
+            eprintln!("    Run `cyrene doctor` to check your API keys and config.");
+            return;
+        }
+    };
+
+    let model_label = chosen.entry.model.as_deref().unwrap_or(chosen.type_name);
+    println!(
+        "Chatting with {}.{} ({}).",
+        chosen.type_name, chosen.alias, model_label
+    );
+    println!("Type your message and press Enter. Use 'exit' or Ctrl-D to quit.\n");
+
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("  ✗ Could not start the async runtime: {e}");
+            return;
+        }
+    };
+
+    let mut history: Vec<ChatMessage> = vec![ChatMessage::system(
+        "You are Cyrene, the AI agent that always loves you. \
+         Be warm, supportive, and concise, and help the user get things done.",
+    )];
+
+    let stdin = std::io::stdin();
+    loop {
+        print!("you ▸ ");
+        let _ = std::io::stdout().flush();
+
+        let mut line = String::new();
+        match stdin.read_line(&mut line) {
+            Ok(0) => {
+                println!("\nGoodbye 💛");
+                break;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("input error: {e}");
+                break;
+            }
+        }
+
+        let input = line.trim();
+        if input.is_empty() {
+            continue;
+        }
+        if matches!(input, "exit" | "quit" | ":q") {
+            println!("Goodbye 💛");
+            break;
+        }
+
+        history.push(ChatMessage::user(input));
+        let req = ModelRequest::new(history.clone());
+
+        match rt.block_on(model.complete(req)) {
+            Ok(resp) => {
+                let reply = resp.content.trim().to_owned();
+                println!("\ncyrene ▸ {reply}\n");
+                history.push(ChatMessage::assistant(reply));
+            }
+            Err(e) => {
+                eprintln!("\n  ✗ {e}\n");
+                // Drop the failed user turn so the next attempt starts clean.
+                history.pop();
+            }
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
-
     // Surface a one-line notice when a newer release exists. Rate-limited to one
     // network check per day and skipped for the commands that already check live.
     if !matches!(
@@ -390,15 +510,23 @@ fn main() {
     match cli.command {
         None => {
             print_banner();
-            println!(
-                "Run `cyrene --help` for available commands, or `cyrene onboard` to get started."
-            );
+            // If the user has onboarded, drop straight into an interactive chat;
+            // otherwise point them at onboarding.
+            if cyrene_config::Config::load().is_ok() {
+                run_chat();
+            } else {
+                println!(
+                    "Run `cyrene --help` for available commands, or `cyrene onboard` to get started."
+                );
+            }
         }
         Some(cmd) => match cmd {
             Commands::Agent => {
                 print_banner();
-                println!("Starting Cyrene agent mode...");
-                println!("(Agent loop not yet wired — run the runtime daemon instead)");
+                run_chat();
+            }
+            Commands::Chat => {
+                run_chat();
             }
             Commands::Gateway => {
                 print_banner();
@@ -720,7 +848,7 @@ fn run_onboarding(non_interactive: bool, provider: Option<&str>, channel: Option
     // whatever they typed — no manual `cp .env.example .env` step.
     let needs_env = !choice.provider.api_key_env.is_empty() || !choice.channel.2.is_empty();
     if needs_env || !choice.secrets.is_empty() {
-        let env_path = std::env::current_dir().unwrap_or_default().join(".env");
+        let env_path = cyrene_dir.join(".env");
         match write_env_secrets(&env_path, &choice.secrets) {
             Ok(()) => {
                 if choice.secrets.is_empty() {
@@ -739,7 +867,7 @@ fn run_onboarding(non_interactive: bool, provider: Option<&str>, channel: Option
 
     println!("\nNext steps:");
     println!("  1. Run `cyrene doctor` to verify your setup");
-    println!("  2. Run `cyrene gateway` to start Cyrene");
+    println!("  2. Run `cyrene` (or `cyrene chat`) to start chatting");
     println!("\nHappy automating! 🚀");
 }
 
