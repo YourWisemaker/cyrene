@@ -190,15 +190,25 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           npm version "$version" --no-git-tag-version --allow-same-version
-      - name: Publish (only when NPM_TOKEN is configured)
+      - name: Publish to npm
         working-directory: npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          set -euo pipefail
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN not set — skipping npm publish."
+            echo "::warning title=npm publish skipped::NPM_TOKEN secret is not set. Add an npm automation token at Settings → Secrets and variables → Actions → NPM_TOKEN to enable automatic publishing."
             exit 0
           fi
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          # Idempotent: if this version is already on the registry (e.g. a
+          # re-run of the same tag), succeed without trying to republish.
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "${name}@${version} is already published — nothing to do."
+            exit 0
+          fi
+          echo "Publishing ${name}@${version} to npm…"
           npm publish --access public
 
   # Keep the committed source in sync with the released tag so a local
