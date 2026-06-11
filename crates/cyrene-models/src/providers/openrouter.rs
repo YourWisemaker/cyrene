@@ -75,4 +75,8 @@ impl Model for OpenRouterProvider {
             "embeddings not directly supported via OpenRouter".to_owned(),
         ))
     }
+
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        super::openai::openai_list_models(&self.client, BASE_URL, &self.api_key).await
+    }
 }

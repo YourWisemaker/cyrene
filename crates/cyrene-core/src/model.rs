@@ -289,6 +289,19 @@ pub trait Model: Send + Sync {
     /// whether to retry, escalate, or halt.
     async fn complete(&self, req: ModelRequest) -> Result<ModelResponse, ModelError>;
 
+    /// Lists the model identifiers this provider advertises (e.g. via the
+    /// OpenAI `/v1/models` endpoint or Ollama `/api/tags`).
+    ///
+    /// The default returns an empty list, meaning discovery is unsupported and
+    /// callers should fall back to a manually entered model name.
+    ///
+    /// # Errors
+    /// Returns a [`ModelError`] if the provider supports discovery but the
+    /// request fails.
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        Ok(Vec::new())
+    }
+
     /// Returns an embedding vector for the given text.
     ///
     /// # Errors

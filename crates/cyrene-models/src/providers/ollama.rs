@@ -93,4 +93,34 @@ impl Model for OllamaProvider {
             .map(|d| d.embedding)
             .unwrap_or_default())
     }
+
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        // Ollama exposes installed models at `/api/tags` (not the OpenAI path),
+        // returning `{ "models": [ { "name": "llama3:70b" }, … ] }`.
+        let root = self.base_url.trim_end_matches("/v1");
+        let url = format!("{root}/api/tags");
+        let resp = self
+            .client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+            .map_err(classify_http_error)?;
+        if !resp.status().is_success() {
+            let t = resp.text().await.unwrap_or_default();
+            return Err(ModelError::Provider(t));
+        }
+        #[derive(serde::Deserialize)]
+        struct Tags {
+            models: Vec<Tag>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Tag {
+            name: String,
+        }
+        let data: Tags = resp.json().await.map_err(classify_http_error)?;
+        let mut names: Vec<String> = data.models.into_iter().map(|m| m.name).collect();
+        names.sort();
+        Ok(names)
+    }
 }

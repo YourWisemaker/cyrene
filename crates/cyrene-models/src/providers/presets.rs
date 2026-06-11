@@ -121,6 +121,17 @@ pub const PRESETS: &[Preset] = &[
         input_cents_per_mtok: 0,
         output_cents_per_mtok: 0,
     },
+    // OpenCode Go is a distinct, lower-cost subscription from OpenCode Zen with
+    // its own endpoint (`/zen/go/v1`) and a catalog of open models (DeepSeek,
+    // GLM, Kimi, Qwen, MiMo, MiniMax). A Go subscription does NOT work against
+    // the Zen endpoint above, so it gets its own preset and key env.
+    Preset {
+        type_name: "opencode-go",
+        base_url: "https://opencode.ai/zen/go/v1",
+        default_model: "deepseek-v4-flash",
+        input_cents_per_mtok: 0,
+        output_cents_per_mtok: 0,
+    },
     Preset {
         type_name: "commandcode",
         base_url: "https://api.commandcode.ai/provider/v1",
@@ -200,5 +211,9 @@ impl Model for PresetProvider {
         Err(ModelError::InvalidRequest(
             "embeddings not supported by this provider".to_owned(),
         ))
+    }
+
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        super::openai::openai_list_models(&self.client, &self.base_url, &self.api_key).await
     }
 }

@@ -378,65 +378,404 @@ fn cmd_catalog_list() {
     }
 }
 
-/// Runs an interactive chat REPL against the configured default model provider.
+/// An owned snapshot of a configured provider, decoupled from the borrowed
+/// [`cyrene_config::Config`] so the chat loop can reload and switch providers
+/// at runtime (e.g. after `/connect`).
+struct ChatProvider {
+    type_name: String,
+    alias: String,
+    entry: cyrene_config::ProviderEntry,
+}
+
+impl ChatProvider {
+    /// `type.alias` label, e.g. `opencode-go.default`.
+    fn label(&self) -> String {
+        format!("{}.{}", self.type_name, self.alias)
+    }
+
+    /// The model name this provider will use, or its preset/type default.
+    fn model_label(&self) -> &str {
+        self.entry.model.as_deref().unwrap_or(&self.type_name)
+    }
+}
+
+/// Loads every configured provider as an owned [`ChatProvider`]. Returns an
+/// empty list when no config exists yet (so the caller can offer `/connect`).
+fn load_chat_providers() -> Vec<ChatProvider> {
+    let Ok(config) = cyrene_config::Config::load() else {
+        return Vec::new();
+    };
+    config
+        .providers()
+        .map(|p| ChatProvider {
+            type_name: p.type_name.to_owned(),
+            alias: p.alias.to_owned(),
+            entry: p.entry.clone(),
+        })
+        .collect()
+}
+
+/// Instantiates a [`cyrene_core::Model`] for the given provider snapshot.
+fn build_chat_model(
+    p: &ChatProvider,
+    secrets: &cyrene_config::SecretResolver,
+) -> Result<std::sync::Arc<dyn cyrene_core::Model>, cyrene_config::BoxError> {
+    cyrene_models::create_provider(&p.type_name, &p.alias, &p.entry, secrets)
+}
+
+/// Prints the in-chat slash-command help.
+fn print_chat_help() {
+    println!("\nCommands:");
+    println!("  Chat");
+    println!("    /clear, /new     Start a fresh conversation");
+    println!("    /retry           Re-run your last message");
+    println!("    /undo            Remove the last exchange");
+    println!("    /history         Show the transcript");
+    println!("    /save            Save the transcript to JSON");
+    println!("    /copy            Copy the last reply to the clipboard");
+    println!("  Models");
+    println!("    /models          List configured providers (● = active)");
+    println!("    /model [name]    Switch provider/model (no arg opens a picker)");
+    println!("    /connect         Add or update a provider + API key");
+    println!("    /reload          Re-read ~/.cyrene/.env");
+    println!("  Info & tools");
+    println!("    /status          Active provider, model, and token counts");
+    println!("    /usage           Token usage this session");
+    println!("    /verbose         Toggle per-reply token counts");
+    println!("    /doctor          Configuration health check");
+    println!("    /tools           List built-in tools");
+    println!("    /skills          List bundled skills");
+    println!("    /version         Show installed vs latest version");
+    println!("    /update          Update Cyrene to the latest release");
+    println!("    /fortune         A little encouragement");
+    println!("    /help            Show this help");
+    println!("    /exit, /quit     Leave the chat\n");
+}
+
+/// Lists configured providers, marking the active one.
+fn print_chat_models(providers: &[ChatProvider], active: usize) {
+    if providers.is_empty() {
+        println!("\nNo providers configured. Use /connect to add one.\n");
+        return;
+    }
+    println!("\nConfigured providers:");
+    for (i, p) in providers.iter().enumerate() {
+        let marker = if i == active { "●" } else { " " };
+        println!("  {marker} {}. {} ({})", i + 1, p.label(), p.model_label());
+    }
+    println!("\nSwitch with `/model <alias|type.alias|number>`.\n");
+}
+
+/// Resolves a `/model` argument (alias, `type.alias`, or 1-based index) to a
+/// provider index.
+fn resolve_provider_arg(providers: &[ChatProvider], arg: &str) -> Option<usize> {
+    let arg = arg.trim();
+    if arg.is_empty() {
+        return None;
+    }
+    if let Ok(n) = arg.parse::<usize>() {
+        if n >= 1 && n <= providers.len() {
+            return Some(n - 1);
+        }
+    }
+    if let Some(i) = providers.iter().position(|p| p.label() == arg) {
+        return Some(i);
+    }
+    providers.iter().position(|p| p.alias == arg)
+}
+
+/// Hermes-style interactive model picker: choose a provider, discover its
+/// models live (OpenAI `/v1/models` or Ollama `/api/tags`), pick one (or type a
+/// custom id), apply it for the session, and return the rebuilt model. Returns
+/// `None` on cancel, non-TTY, or build failure.
+fn interactive_model_picker(
+    providers: &mut [ChatProvider],
+    secrets: &cyrene_config::SecretResolver,
+    rt: &tokio::runtime::Runtime,
+) -> Option<(usize, std::sync::Arc<dyn cyrene_core::Model>)> {
+    use std::io::IsTerminal;
+
+    if providers.is_empty() {
+        println!("No providers configured. Use /connect first.");
+        return None;
+    }
+    // Without a TTY the dialoguer prompts can't run; just show the list.
+    if !std::io::stdin().is_terminal() {
+        return None;
+    }
+
+    let labels: Vec<String> = providers
+        .iter()
+        .map(|p| format!("{} ({})", p.label(), p.model_label()))
+        .collect();
+    let pidx = dialoguer::Select::new()
+        .with_prompt("Select a provider")
+        .items(&labels)
+        .default(0)
+        .interact()
+        .ok()?;
+
+    // Discover the provider's catalog live. Build a probe model with the current
+    // entry, then ask it for its model list (best-effort).
+    let discovered: Vec<String> = match build_chat_model(&providers[pidx], secrets) {
+        Ok(probe) => {
+            println!("  Fetching models from {}…", providers[pidx].type_name);
+            match rt.block_on(probe.list_models()) {
+                Ok(list) => list,
+                Err(e) => {
+                    eprintln!("  (couldn't fetch model list: {e})");
+                    Vec::new()
+                }
+            }
+        }
+        Err(_) => Vec::new(),
+    };
+
+    let chosen_model: Option<String> = if discovered.is_empty() {
+        let current = providers[pidx].model_label().to_owned();
+        let m: String = dialoguer::Input::new()
+            .with_prompt("Model name")
+            .with_initial_text(current)
+            .allow_empty(true)
+            .interact_text()
+            .ok()?;
+        let m = m.trim();
+        (!m.is_empty()).then(|| m.to_owned())
+    } else {
+        let mut items: Vec<String> = discovered.clone();
+        items.push("custom…".to_owned());
+        // Preselect the currently configured model if it's in the list.
+        let default_idx = providers[pidx]
+            .entry
+            .model
+            .as_deref()
+            .and_then(|cur| discovered.iter().position(|m| m == cur))
+            .unwrap_or(0);
+        let midx = dialoguer::Select::new()
+            .with_prompt("Select a model")
+            .items(&items)
+            .default(default_idx)
+            .interact()
+            .ok()?;
+        if midx == discovered.len() {
+            let m: String = dialoguer::Input::new()
+                .with_prompt("Model name")
+                .interact_text()
+                .ok()?;
+            let m = m.trim();
+            (!m.is_empty()).then(|| m.to_owned())
+        } else {
+            Some(discovered[midx].clone())
+        }
+    };
+
+    if let Some(m) = chosen_model {
+        providers[pidx].entry.model = Some(m);
+    }
+
+    match build_chat_model(&providers[pidx], secrets) {
+        Ok(model) => Some((pidx, model)),
+        Err(e) => {
+            eprintln!("  ✗ Could not switch to {}: {e}", providers[pidx].label());
+            eprintln!("    Check its API key with /connect.");
+            None
+        }
+    }
+}
+
+/// Runs an interactive chat REPL against the configured model provider.
 ///
 /// This is what `cyrene` (no subcommand) and `cyrene agent`/`cyrene chat` launch:
-/// a conversational loop that reads a line from the user, sends the running
-/// conversation to the model, and prints the reply. Secrets are loaded from
-/// `~/.cyrene/.env` so a freshly onboarded setup just works.
+/// a conversational loop that reads a line, sends the running conversation to
+/// the model, and prints the reply. Secrets load from `~/.cyrene/.env`. In-chat
+/// slash commands (`/models`, `/model`, `/connect`, …) manage providers without
+/// leaving the session.
+/// Runs one completion turn: sends the current conversation, prints the reply,
+/// accumulates token usage, and (on error) drops the trailing user turn so the
+/// next attempt starts clean. Shared by normal input and `/retry`.
+fn complete_turn(
+    rt: &tokio::runtime::Runtime,
+    model: &std::sync::Arc<dyn cyrene_core::Model>,
+    history: &mut Vec<cyrene_core::ChatMessage>,
+    usage_total: &mut cyrene_core::TokenUsage,
+    verbose: bool,
+) {
+    use cyrene_core::{ChatMessage, ModelRequest, Role};
+
+    let req = ModelRequest::new(history.clone());
+    match rt.block_on(model.complete(req)) {
+        Ok(resp) => {
+            let reply = resp.content.trim().to_owned();
+            println!("\ncyrene ▸ {reply}\n");
+            usage_total.input_tokens = usage_total
+                .input_tokens
+                .saturating_add(resp.usage.input_tokens);
+            usage_total.output_tokens = usage_total
+                .output_tokens
+                .saturating_add(resp.usage.output_tokens);
+            if verbose {
+                println!(
+                    "  [tokens: +{} in, +{} out · session total {}]\n",
+                    resp.usage.input_tokens,
+                    resp.usage.output_tokens,
+                    usage_total.total()
+                );
+            }
+            history.push(ChatMessage::assistant(reply));
+        }
+        Err(e) => {
+            eprintln!("\n  ✗ {e}");
+            let msg = e.to_string().to_lowercase();
+            if msg.contains("insufficient")
+                || msg.contains("balance")
+                || msg.contains("credit")
+                || msg.contains("401")
+                || msg.contains("unauthorized")
+            {
+                eprintln!(
+                    "    Tip: top up this provider, or switch with /models then /model <name>."
+                );
+            }
+            eprintln!();
+            if history.last().map(|m| m.role) == Some(Role::User) {
+                history.pop();
+            }
+        }
+    }
+}
+
+/// Copies text to the OS clipboard via the platform's standard utility.
+/// Returns `false` if no clipboard tool is available.
+fn copy_to_clipboard(text: &str) -> bool {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let candidates: &[(&str, &[&str])] = if cfg!(target_os = "macos") {
+        &[("pbcopy", &[])]
+    } else if cfg!(target_os = "windows") {
+        &[("clip", &[])]
+    } else {
+        &[
+            ("wl-copy", &[]),
+            ("xclip", &["-selection", "clipboard"]),
+            ("xsel", &["--clipboard", "--input"]),
+        ]
+    };
+
+    for (cmd, args) in candidates {
+        if let Ok(mut child) = Command::new(cmd)
+            .args(*args)
+            .stdin(Stdio::piped())
+            .spawn()
+        {
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            if child.wait().map(|s| s.success()).unwrap_or(false) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// A small rotating set of encouragements for `/fortune`.
+fn random_fortune() -> &'static str {
+    const FORTUNES: &[&str] = &[
+        "Small steps still move you forward.",
+        "The best time to start was yesterday; the next best is now.",
+        "You don't have to be perfect to be making progress.",
+        "Ship it, then make it better.",
+        "Every expert was once a beginner who kept going.",
+        "Rest is part of the work.",
+        "Cyrene believes in you. 💛",
+    ];
+    let idx = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as usize)
+        .unwrap_or(0)
+        % FORTUNES.len();
+    FORTUNES[idx]
+}
+
+/// Prints the active provider/model, message count, and session token usage.
+fn print_chat_status(
+    providers: &[ChatProvider],
+    active: usize,
+    history: &[cyrene_core::ChatMessage],
+    usage_total: &cyrene_core::TokenUsage,
+) {
+    use cyrene_core::Role;
+    println!("\nSession status:");
+    match providers.get(active) {
+        Some(p) => println!("  Provider: {} ({})", p.label(), p.model_label()),
+        None => println!("  Provider: (none — use /connect)"),
+    }
+    let msgs = history.iter().filter(|m| m.role != Role::System).count();
+    println!("  Messages: {msgs}");
+    println!(
+        "  Tokens:   {} in / {} out ({} total)\n",
+        usage_total.input_tokens,
+        usage_total.output_tokens,
+        usage_total.total()
+    );
+}
+
+/// Prints the user/assistant transcript (skipping the system prompt).
+fn print_chat_history(history: &[cyrene_core::ChatMessage]) {
+    use cyrene_core::Role;
+    println!("\nTranscript:");
+    let mut any = false;
+    for m in history {
+        let who = match m.role {
+            Role::User => "you",
+            Role::Assistant => "cyrene",
+            Role::Tool => "tool",
+            Role::System => continue,
+        };
+        println!("  {who} ▸ {}", m.content.trim());
+        any = true;
+    }
+    if !any {
+        println!("  (empty)");
+    }
+    println!();
+}
+
+/// Saves the transcript as pretty JSON under `~/.cyrene/transcripts/`.
+fn save_transcript(
+    dir: &std::path::Path,
+    history: &[cyrene_core::ChatMessage],
+) -> std::io::Result<std::path::PathBuf> {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join("transcripts").join(format!("chat-{secs}.json"));
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(history).map_err(std::io::Error::other)?;
+    std::fs::write(&path, json)?;
+    Ok(path)
+}
+
 fn run_chat() {
-    use cyrene_core::{ChatMessage, ModelRequest};
+    use cyrene_core::{ChatMessage, Role};
     use std::io::Write;
 
     let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
+    let env_path = cyrene_dir.join(".env");
 
     // Seed the process environment from ~/.cyrene/.env so configured
     // `api_key_env` secrets resolve without the user exporting them by hand.
-    let secrets = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+    let mut secrets = cyrene_config::SecretResolver::with_dotenv_path(&env_path);
 
-    let config = match cyrene_config::Config::load() {
-        Ok(c) => c,
-        Err(_) => {
-            println!("No configuration found. Run `cyrene onboard` to get started.");
-            return;
-        }
-    };
-
-    // Prefer the provider aliased `default` (what onboarding writes), else the
-    // first one declared.
-    let providers: Vec<_> = config.providers().collect();
-    let Some(chosen) = providers
+    let mut providers = load_chat_providers();
+    let mut active = providers
         .iter()
-        .find(|p| p.alias == "default")
-        .or_else(|| providers.first())
-    else {
-        println!("No model provider configured. Run `cyrene onboard` first.");
-        return;
-    };
-
-    let model = match cyrene_models::create_provider(
-        chosen.type_name,
-        chosen.alias,
-        chosen.entry,
-        &secrets,
-    ) {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!(
-                "  ✗ Could not initialize provider `{}.{}`: {e}",
-                chosen.type_name, chosen.alias
-            );
-            eprintln!("    Run `cyrene doctor` to check your API keys and config.");
-            return;
-        }
-    };
-
-    let model_label = chosen.entry.model.as_deref().unwrap_or(chosen.type_name);
-    println!(
-        "Chatting with {}.{} ({}).",
-        chosen.type_name, chosen.alias, model_label
-    );
-    println!("Type your message and press Enter. Use 'exit' or Ctrl-D to quit.\n");
+        .position(|p| p.alias == "default")
+        .unwrap_or(0);
 
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
@@ -446,10 +785,32 @@ fn run_chat() {
         }
     };
 
+    // Build the initial model. A failure here (e.g. missing key) is non-fatal:
+    // the user can still `/connect`, `/models`, or `/model` to fix it.
+    let mut model: Option<std::sync::Arc<dyn cyrene_core::Model>> = None;
+    if let Some(p) = providers.get(active) {
+        match build_chat_model(p, &secrets) {
+            Ok(m) => {
+                println!("Chatting with {} ({}).", p.label(), p.model_label());
+                model = Some(m);
+            }
+            Err(e) => {
+                eprintln!("  ✗ Could not initialize {}: {e}", p.label());
+                eprintln!("    Use /connect to add a key, or /models to switch.");
+            }
+        }
+    } else {
+        println!("No model provider configured yet.");
+        eprintln!("    Use /connect to set one up.");
+    }
+    println!("Type a message, or /help for commands. /exit to quit.\n");
+
     let mut history: Vec<ChatMessage> = vec![ChatMessage::system(
         "You are Cyrene, the AI agent that always loves you. \
          Be warm, supportive, and concise, and help the user get things done.",
     )];
+    let mut usage_total = cyrene_core::TokenUsage::default();
+    let mut verbose = false;
 
     let stdin = std::io::stdin();
     loop {
@@ -473,26 +834,185 @@ fn run_chat() {
         if input.is_empty() {
             continue;
         }
-        if matches!(input, "exit" | "quit" | ":q") {
+
+        // Slash commands are handled locally and never sent to the model.
+        if let Some(rest) = input.strip_prefix('/') {
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            let cmd = parts.next().unwrap_or("");
+            let arg = parts.next().unwrap_or("").trim();
+
+            match cmd {
+                "help" | "h" | "?" => print_chat_help(),
+                "models" | "providers" => print_chat_models(&providers, active),
+                "model" | "use" | "switch" => {
+                    if providers.is_empty() {
+                        println!("No providers configured. Use /connect first.");
+                    } else if arg.is_empty() {
+                        // No argument: open the interactive provider/model picker.
+                        if let Some((i, m)) =
+                            interactive_model_picker(&mut providers, &secrets, &rt)
+                        {
+                            active = i;
+                            model = Some(m);
+                            println!(
+                                "Switched to {} ({}).",
+                                providers[i].label(),
+                                providers[i].model_label()
+                            );
+                        } else {
+                            // Non-TTY or cancelled: fall back to listing.
+                            print_chat_models(&providers, active);
+                        }
+                    } else if let Some(i) = resolve_provider_arg(&providers, arg) {
+                        match build_chat_model(&providers[i], &secrets) {
+                            Ok(m) => {
+                                active = i;
+                                model = Some(m);
+                                println!(
+                                    "Switched to {} ({}).",
+                                    providers[i].label(),
+                                    providers[i].model_label()
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!("  ✗ Could not switch to {}: {e}", providers[i].label());
+                                eprintln!("    Check its API key with /connect.");
+                            }
+                        }
+                    } else {
+                        println!("Unknown provider `{arg}`. Use /models to see options.");
+                    }
+                }
+                "connect" => {
+                    println!();
+                    run_onboarding(false, None, None);
+                    // Reload secrets (new .env keys) and providers, then rebuild.
+                    secrets = cyrene_config::SecretResolver::with_dotenv_path(&env_path);
+                    providers = load_chat_providers();
+                    active = providers
+                        .iter()
+                        .position(|p| p.alias == "default")
+                        .unwrap_or(0);
+                    model = providers
+                        .get(active)
+                        .and_then(|p| build_chat_model(p, &secrets).ok());
+                    if let Some(p) = providers.get(active) {
+                        println!("\nNow chatting with {} ({}).\n", p.label(), p.model_label());
+                    }
+                }
+                "clear" | "reset" | "new" => {
+                    history.truncate(1); // keep the system prompt
+                    usage_total = cyrene_core::TokenUsage::default();
+                    println!("Conversation cleared.");
+                }
+                "doctor" => {
+                    println!();
+                    cmd_doctor();
+                    println!();
+                }
+                "status" => print_chat_status(&providers, active, &history, &usage_total),
+                "history" => print_chat_history(&history),
+                "usage" => {
+                    println!(
+                        "\nSession usage: {} in / {} out ({} total)\n",
+                        usage_total.input_tokens,
+                        usage_total.output_tokens,
+                        usage_total.total()
+                    );
+                }
+                "verbose" => {
+                    verbose = !verbose;
+                    println!("Per-reply token counts {}.", if verbose { "on" } else { "off" });
+                }
+                "save" => match save_transcript(&cyrene_dir, &history) {
+                    Ok(path) => println!("Transcript saved to {}", path.display()),
+                    Err(e) => eprintln!("  ✗ Could not save transcript: {e}"),
+                },
+                "copy" => {
+                    match history.iter().rev().find(|m| m.role == Role::Assistant) {
+                        Some(last) if copy_to_clipboard(&last.content) => {
+                            println!("Copied the last reply to the clipboard.");
+                        }
+                        Some(_) => println!("Could not access the clipboard on this system."),
+                        None => println!("No assistant message to copy yet."),
+                    }
+                }
+                "retry" => {
+                    if let Some(m) = model.clone() {
+                        // Drop the previous reply (if any) and re-run the last user turn.
+                        if history.last().map(|x| x.role) == Some(Role::Assistant) {
+                            history.pop();
+                        }
+                        if history.last().map(|x| x.role) == Some(Role::User) {
+                            complete_turn(&rt, &m, &mut history, &mut usage_total, verbose);
+                        } else {
+                            println!("Nothing to retry.");
+                        }
+                    } else {
+                        println!("No active model. Use /connect or /models.");
+                    }
+                }
+                "undo" => {
+                    let before = history.len();
+                    if history.last().map(|x| x.role) == Some(Role::Assistant) {
+                        history.pop();
+                    }
+                    if history.last().map(|x| x.role) == Some(Role::User) {
+                        history.pop();
+                    }
+                    if history.len() < before {
+                        println!("Removed the last exchange.");
+                    } else {
+                        println!("Nothing to undo.");
+                    }
+                }
+                "reload" => {
+                    secrets = cyrene_config::SecretResolver::with_dotenv_path(&env_path);
+                    model = providers
+                        .get(active)
+                        .and_then(|p| build_chat_model(p, &secrets).ok());
+                    println!("Reloaded ~/.cyrene/.env.");
+                }
+                "tools" => {
+                    println!();
+                    cmd_tools_list();
+                    println!();
+                }
+                "skills" => {
+                    println!();
+                    cmd_skills_list();
+                    println!();
+                }
+                "version" => {
+                    println!();
+                    update::show_version();
+                    println!();
+                }
+                "update" => update::run_update(false),
+                "fortune" => println!("\n  {}\n", random_fortune()),
+                "exit" | "quit" | "q" => {
+                    println!("Goodbye 💛");
+                    break;
+                }
+                other => {
+                    println!("Unknown command `/{other}`. Type /help for the list.");
+                }
+            }
+            continue;
+        }
+
+        if matches!(input, "exit" | "quit") {
             println!("Goodbye 💛");
             break;
         }
 
-        history.push(ChatMessage::user(input));
-        let req = ModelRequest::new(history.clone());
+        let Some(active_model) = model.clone() else {
+            println!("No active model. Use /connect to add a provider key, or /models.");
+            continue;
+        };
 
-        match rt.block_on(model.complete(req)) {
-            Ok(resp) => {
-                let reply = resp.content.trim().to_owned();
-                println!("\ncyrene ▸ {reply}\n");
-                history.push(ChatMessage::assistant(reply));
-            }
-            Err(e) => {
-                eprintln!("\n  ✗ {e}\n");
-                // Drop the failed user turn so the next attempt starts clean.
-                history.pop();
-            }
-        }
+        history.push(ChatMessage::user(input));
+        complete_turn(&rt, &active_model, &mut history, &mut usage_total, verbose);
     }
 }
 
@@ -747,6 +1267,15 @@ const PROVIDERS: &[ProviderSpec] = &[
         label: "opencode (OpenCode Zen gateway)",
         type_name: "opencode",
         api_key_env: "OPENCODE_ZEN_API_KEY",
+        model: "",
+        tier: "Premium",
+        needs_base_url: false,
+    },
+    ProviderSpec {
+        key: "opencode-go",
+        label: "opencode-go (OpenCode Go subscription — open models)",
+        type_name: "opencode-go",
+        api_key_env: "OPENCODE_API_KEY",
         model: "",
         tier: "Premium",
         needs_base_url: false,

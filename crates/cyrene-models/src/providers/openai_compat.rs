@@ -76,4 +76,8 @@ impl Model for OpenAiCompatProvider {
             "embeddings not supported by this provider".to_owned(),
         ))
     }
+
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        super::openai::openai_list_models(&self.client, &self.base_url, &self.api_key).await
+    }
 }

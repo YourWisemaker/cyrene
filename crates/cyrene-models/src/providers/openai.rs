@@ -157,8 +157,43 @@ pub(crate) fn parse_openai_response(resp: OpenAiResponse) -> ModelResponse {
     )
 }
 
-// ─── OpenAI Provider ─────────────────────────────────────────────────────────
+/// Lists model IDs from an OpenAI-style `GET {base_url}/models` endpoint.
+/// Shared by every OpenAI-compatible provider. Best-effort: a 10s timeout keeps
+/// an interactive picker responsive.
+pub(crate) async fn openai_list_models(
+    client: &Client,
+    base_url: &str,
+    api_key: &str,
+) -> Result<Vec<String>, ModelError> {
+    #[derive(Deserialize)]
+    struct ModelList {
+        data: Vec<ModelEntry>,
+    }
+    #[derive(Deserialize)]
+    struct ModelEntry {
+        id: String,
+    }
 
+    let url = format!("{base_url}/models");
+    let resp = client
+        .get(&url)
+        .bearer_auth(api_key)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(classify_http_error)?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(ModelError::Provider(format!("{status}: {text}")));
+    }
+    let data: ModelList = resp.json().await.map_err(classify_http_error)?;
+    let mut ids: Vec<String> = data.data.into_iter().map(|m| m.id).collect();
+    ids.sort();
+    Ok(ids)
+}
+
+// ─── OpenAI Provider ─────────────────────────────────────────────────────────
 pub struct OpenAiProvider {
     client: Client,
     base_url: String,
@@ -257,5 +292,9 @@ impl Model for OpenAiProvider {
             .next()
             .map(|d| d.embedding)
             .unwrap_or_default())
+    }
+
+    async fn list_models(&self) -> Result<Vec<String>, ModelError> {
+        openai_list_models(&self.client, &self.base_url, &self.api_key).await
     }
 }

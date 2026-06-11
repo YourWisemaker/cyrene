@@ -192,6 +192,23 @@ cyrene doctor      # Check your configuration
 cyrene             # Start chatting (or: cyrene chat)
 ```
 
+Inside the chat, slash commands manage the session without leaving it:
+
+```text
+/model [name]   Switch provider/model (no arg opens a live picker)
+/models         List configured providers (● = active)
+/connect        Add or update a provider + API key
+/status /usage  Active provider/model and token usage
+/history /save  View or save the transcript
+/retry /undo    Re-run or remove the last exchange
+/tools /skills  List built-in tools and bundled skills
+/help           Full command list
+```
+
+The model picker fetches each provider's catalog live (OpenAI `/v1/models`,
+Ollama `/api/tags`), so you choose from the models your key actually has access
+to — including all OpenCode Go open models.
+
 Keep Cyrene current at any time — `cyrene update` re-runs the right installer for
 your platform (PowerShell on Windows, the shell script elsewhere):
 
