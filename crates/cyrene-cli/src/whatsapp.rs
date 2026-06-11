@@ -10,7 +10,7 @@
 //!   model and sending it back through the Graph API.
 //!
 //! To use it you need, in `~/.cyrene/.env`:
-//!   WHATSAPP_TOKEN            — a Cloud API access token
+//!   WHATSAPP_ACCESS_TOKEN     — a Cloud API access token (WHATSAPP_TOKEN also works)
 //!   WHATSAPP_PHONE_NUMBER_ID  — the sending phone-number id
 //!   WHATSAPP_VERIFY_TOKEN     — any secret you also paste into Meta's webhook UI
 //! and a public URL pointing at this server (e.g. an ngrok/cloudflared tunnel).
@@ -39,8 +39,10 @@ pub struct Settings {
 
 impl Settings {
     /// Loads settings from the environment, reporting the first missing key.
+    /// The access token is read from `WHATSAPP_ACCESS_TOKEN` (the name used in
+    /// `.env.example`) with `WHATSAPP_TOKEN` accepted as a fallback.
     pub fn from_env() -> Result<Self, String> {
-        let token = req_env("WHATSAPP_TOKEN")?;
+        let token = req_env("WHATSAPP_TOKEN").or_else(|_| req_env("WHATSAPP_ACCESS_TOKEN"))?;
         let phone_number_id = req_env("WHATSAPP_PHONE_NUMBER_ID")?;
         let verify_token = req_env("WHATSAPP_VERIFY_TOKEN")?;
         let port = std::env::var("WHATSAPP_PORT")

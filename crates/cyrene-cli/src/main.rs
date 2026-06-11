@@ -903,7 +903,7 @@ fn run_telegram() {
 }
 
 /// `cyrene whatsapp`: run the WhatsApp Cloud API webhook bridge, answering
-/// messages with the configured model. Needs `WHATSAPP_TOKEN`,
+/// messages with the configured model. Needs `WHATSAPP_ACCESS_TOKEN`,
 /// `WHATSAPP_PHONE_NUMBER_ID`, and `WHATSAPP_VERIFY_TOKEN` in `~/.cyrene/.env`.
 /// Blocks until interrupted.
 fn run_whatsapp() {
@@ -914,7 +914,9 @@ fn run_whatsapp() {
         Ok(s) => s,
         Err(e) => {
             println!("WhatsApp is not configured: {e}");
-            println!("Add WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN to");
+            println!(
+                "Add WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN to"
+            );
             println!(
                 "~/.cyrene/.env (from the Meta WhatsApp Cloud API dashboard), then try again."
             );

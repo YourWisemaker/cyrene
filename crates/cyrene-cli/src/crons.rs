@@ -319,12 +319,15 @@ fn deliver(rt: &tokio::runtime::Runtime, channel: &str, text: &str) {
             rt.block_on(send_discord(&url, text));
         }
         "whatsapp" => {
-            let token = std::env::var("WHATSAPP_TOKEN").unwrap_or_default();
+            let token = std::env::var("WHATSAPP_ACCESS_TOKEN")
+                .or_else(|_| std::env::var("WHATSAPP_TOKEN"))
+                .unwrap_or_default();
             let phone_id = std::env::var("WHATSAPP_PHONE_NUMBER_ID").unwrap_or_default();
             if token.is_empty() || phone_id.is_empty() || target.is_empty() {
                 eprintln!(
-                    "  cron: whatsapp delivery needs WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, \
-                     and a recipient (channel `whatsapp:<number>`). Printing instead:\n{text}"
+                    "  cron: whatsapp delivery needs WHATSAPP_ACCESS_TOKEN, \
+                     WHATSAPP_PHONE_NUMBER_ID, and a recipient (channel `whatsapp:<number>`). \
+                     Printing instead:\n{text}"
                 );
                 return;
             }
