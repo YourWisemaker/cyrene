@@ -11,11 +11,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cyrene_core::{ChatMessage, Model, ModelRequest};
+use cyrene_core::{ChatMessage, Model};
 use serde_json::Value;
 
-const SYSTEM_PROMPT: &str = "You are Cyrene, the AI agent that always loves you. \
-     Be warm, supportive, and concise, and help the user get things done.";
+use crate::agent;
 
 /// Detects a Telegram bot token (`<digits>:<~35 url-safe chars>`) anywhere in
 /// `text`. Lets a pasted token in chat trigger a real connection instead of a
@@ -109,26 +108,14 @@ async fn run_loop(client: reqwest::Client, token: String, model: Arc<dyn Model>)
 
             let hist = histories
                 .entry(chat_id)
-                .or_insert_with(|| vec![ChatMessage::system(SYSTEM_PROMPT)]);
+                .or_insert_with(|| vec![ChatMessage::system(agent::system_prompt())]);
             hist.push(ChatMessage::user(text));
 
-            let reply = match model.complete(ModelRequest::new(hist.clone())).await {
-                Ok(r) => {
-                    let reply = r.content.trim().to_owned();
-                    hist.push(ChatMessage::assistant(reply.clone()));
-                    reply
-                }
-                Err(e) => {
-                    hist.pop();
-                    format!("Sorry, I hit an error reaching my model: {e}")
-                }
-            };
+            // Full agent loop: persona + Python integrations + remember/schedule.
+            // Scheduled reports default back to this Telegram chat.
+            let origin = format!("telegram:{chat_id}");
+            let reply = agent::run_turn(&model, hist, &origin).await;
 
-            let reply = if reply.is_empty() {
-                "(no response)".to_owned()
-            } else {
-                reply
-            };
             send_message(&client, &token, chat_id, &reply).await;
             println!("  telegram → [{chat_id}] {reply}");
         }
@@ -151,5 +138,8 @@ pub fn run(rt: &tokio::runtime::Runtime, model: Arc<dyn Model>, token: &str) {
             return;
         }
     }
+    // Auto-start the scheduler so reports Cyrene schedules from chat are
+    // delivered back here while the bridge runs.
+    crate::crons::spawn_background();
     rt.block_on(run_loop(client, token.to_owned(), model));
 }

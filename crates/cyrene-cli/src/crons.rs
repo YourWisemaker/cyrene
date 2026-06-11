@@ -142,7 +142,7 @@ pub fn run_once(name: &str) -> Result<(), String> {
 }
 
 /// Runs the scheduler loop: every 60s, fire due jobs and record their run.
-/// Blocks until interrupted.
+/// Blocks until interrupted. Used by the explicit `cyrene cron run` command.
 pub fn run_daemon() {
     load_env();
     let s = match open() {
@@ -161,18 +161,65 @@ pub fn run_daemon() {
     };
     println!("✓ Cyrene cron is running. Checking every minute… (Ctrl-C to stop)");
     loop {
-        let now = Utc::now();
-        match s.due_jobs(now) {
-            Ok(jobs) => {
-                for job in jobs {
-                    println!("  cron: firing `{}` → {}", job.name, job.task);
-                    fire(&rt, &job.task, &job.channel);
-                    let _ = s.mark_run(&job.name, now);
-                }
-            }
-            Err(e) => eprintln!("  cron: scheduler error: {e}"),
-        }
+        tick(&rt, &s, true);
         std::thread::sleep(Duration::from_secs(60));
+    }
+}
+
+/// Whether the in-process background scheduler has already been started, so
+/// repeated entry points (or a re-entered REPL) don't spawn duplicates.
+static BACKGROUND_STARTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Starts the cron scheduler in a background thread for the lifetime of this
+/// process, unless one is already running. Idempotent.
+///
+/// This is what lets "report me X every morning" work straight from a chat,
+/// Telegram, or WhatsApp session — the long-running process fires due jobs
+/// itself, with no separate `cyrene cron run`. The thread is quiet: it logs
+/// fires to stderr but prints nothing on the happy idle path.
+pub fn spawn_background() {
+    use std::sync::atomic::Ordering;
+    if BACKGROUND_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let _ = std::thread::Builder::new()
+        .name("cyrene-cron".to_owned())
+        .spawn(background_loop);
+}
+
+/// The background scheduler body: open the store, then tick every 60s. Any
+/// setup failure ends the thread quietly — scheduling simply stays manual.
+fn background_loop() {
+    load_env();
+    let Ok(s) = open() else {
+        return;
+    };
+    let Ok(rt) = tokio::runtime::Runtime::new() else {
+        return;
+    };
+    loop {
+        tick(&rt, &s, false);
+        std::thread::sleep(Duration::from_secs(60));
+    }
+}
+
+/// Fires every job due at the current minute and records its run. `verbose`
+/// prints a line per fire (the foreground daemon); the background scheduler
+/// keeps quiet except on errors.
+fn tick(rt: &tokio::runtime::Runtime, s: &CronScheduler, verbose: bool) {
+    let now = Utc::now();
+    match s.due_jobs(now) {
+        Ok(jobs) => {
+            for job in jobs {
+                if verbose {
+                    println!("  cron: firing `{}` → {}", job.name, job.task);
+                }
+                fire(rt, &job.task, &job.channel);
+                let _ = s.mark_run(&job.name, now);
+            }
+        }
+        Err(e) => eprintln!("  cron: scheduler error: {e}"),
     }
 }
 
@@ -230,6 +277,18 @@ fn deliver(rt: &tokio::runtime::Runtime, channel: &str, text: &str) {
             }
             rt.block_on(send_discord(&url, text));
         }
+        "whatsapp" => {
+            let token = std::env::var("WHATSAPP_TOKEN").unwrap_or_default();
+            let phone_id = std::env::var("WHATSAPP_PHONE_NUMBER_ID").unwrap_or_default();
+            if token.is_empty() || phone_id.is_empty() || target.is_empty() {
+                eprintln!(
+                    "  cron: whatsapp delivery needs WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, \
+                     and a recipient (channel `whatsapp:<number>`). Printing instead:\n{text}"
+                );
+                return;
+            }
+            rt.block_on(send_whatsapp(&token, &phone_id, target, text));
+        }
         _ => println!("\n[cron report]\n{text}\n"),
     }
 }
@@ -253,6 +312,31 @@ async fn send_discord(webhook_url: &str, text: &str) {
         let body = serde_json::json!({ "content": chunk });
         if let Err(e) = client.post(webhook_url).json(&body).send().await {
             eprintln!("  cron: discord send error: {e}");
+        }
+    }
+}
+
+/// Sends a WhatsApp message via the Graph API (chunked under the body limit).
+/// Mirrors the send path in `whatsapp.rs` so scheduled reports reach the same
+/// recipient who asked for them.
+async fn send_whatsapp(token: &str, phone_number_id: &str, to: &str, text: &str) {
+    let client = reqwest::Client::new();
+    let url = format!("https://graph.facebook.com/v20.0/{phone_number_id}/messages");
+    for chunk in chunk_text(text, 3500) {
+        let body = serde_json::json!({
+            "messaging_product": "whatsapp",
+            "to": to,
+            "type": "text",
+            "text": { "body": chunk },
+        });
+        if let Err(e) = client
+            .post(&url)
+            .bearer_auth(token)
+            .json(&body)
+            .send()
+            .await
+        {
+            eprintln!("  cron: whatsapp send error: {e}");
         }
     }
 }

@@ -24,11 +24,10 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 
-use cyrene_core::{ChatMessage, Model, ModelRequest};
+use cyrene_core::{ChatMessage, Model};
 use serde_json::Value;
 
-const SYSTEM_PROMPT: &str = "You are Cyrene, the AI agent that always loves you. \
-     Be warm, supportive, and concise, and help the user get things done.";
+use crate::agent;
 
 /// Credentials and settings for the bridge, read from the environment.
 pub struct Settings {
@@ -276,6 +275,10 @@ pub fn run(rt: &tokio::runtime::Runtime, model: Arc<dyn Model>, settings: Settin
         "  Point your Meta webhook (and verify token) at a public URL forwarding to this port."
     );
 
+    // Auto-start the scheduler so scheduled reports are delivered while the
+    // webhook server runs.
+    crate::crons::spawn_background();
+
     let client = reqwest::Client::new();
     let mut histories: HashMap<String, Vec<ChatMessage>> = HashMap::new();
 
@@ -304,25 +307,14 @@ pub fn run(rt: &tokio::runtime::Runtime, model: Arc<dyn Model>, settings: Settin
             println!("  whatsapp ← [{}] {}", msg.from, msg.text);
             let hist = histories
                 .entry(msg.from.clone())
-                .or_insert_with(|| vec![ChatMessage::system(SYSTEM_PROMPT)]);
+                .or_insert_with(|| vec![ChatMessage::system(agent::system_prompt())]);
             hist.push(ChatMessage::user(&msg.text));
 
-            let reply = match rt.block_on(model.complete(ModelRequest::new(hist.clone()))) {
-                Ok(r) => {
-                    let reply = r.content.trim().to_owned();
-                    hist.push(ChatMessage::assistant(reply.clone()));
-                    reply
-                }
-                Err(e) => {
-                    hist.pop();
-                    format!("Sorry, I hit an error reaching my model: {e}")
-                }
-            };
-            let reply = if reply.is_empty() {
-                "(no response)".to_owned()
-            } else {
-                reply
-            };
+            // Full agent loop: persona + Python integrations + remember/schedule.
+            // Scheduled reports default back to this WhatsApp recipient.
+            let origin = format!("whatsapp:{}", msg.from);
+            let reply = rt.block_on(agent::run_turn(&model, hist, &origin));
+
             rt.block_on(send_message(&client, &settings, &msg.from, &reply));
             println!("  whatsapp → [{}] {}", msg.from, reply);
         }

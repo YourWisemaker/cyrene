@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 mod update;
 
 mod actions;
+mod agent;
 mod chatmem;
 mod crons;
 mod persona;
@@ -826,27 +827,11 @@ fn run_whatsapp() {
     whatsapp::run(&rt, model, settings);
 }
 
-/// Builds the system prompt in cache-friendly tiers (the Hermes pattern):
-///
-/// 1. **stable** — Cyrene's identity (`~/.cyrene/SOUL.md` or the built-in
-///    default), plus memory-curation, user-modeling, and action-protocol
-///    guidance. Byte-stable for the session.
-/// 2. **volatile** — what she remembers: durable task facts, then her evolving
-///    model of who the user is. Rebuilt whenever memory changes.
-///
-/// Called at startup and whenever memories change so context reflects them at
-/// once.
+/// Builds the system prompt for the interactive REPL. Delegates to
+/// [`agent::system_prompt`] so every channel (CLI, Telegram, WhatsApp) shares
+/// one identity and memory. Called at startup and whenever memory changes.
 fn rebuild_system_prompt() -> String {
-    let mut s = persona::stable_block();
-    if let Some(mem) = chatmem::context_block() {
-        s.push_str("\n\n");
-        s.push_str(&mem);
-    }
-    if let Some(profile) = chatmem::user_profile_block() {
-        s.push_str("\n\n");
-        s.push_str(&profile);
-    }
-    s
+    agent::system_prompt()
 }
 
 /// How long an in-chat Python run may take before it's killed.
@@ -1104,6 +1089,11 @@ fn run_chat() {
         eprintln!("    Use /connect to set one up.");
     }
     println!("Type a message, or /help for commands. /exit to quit.\n");
+
+    // Auto-start the cron scheduler for this session so anything Cyrene
+    // schedules ("report me X every morning") fires while the chat is open —
+    // no separate `cyrene cron run` needed.
+    crons::spawn_background();
 
     // Base persona, augmented with anything Cyrene remembers from past sessions
     // (facts saved via `/remember`). This is how memory "carries over" — the
