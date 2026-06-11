@@ -75,7 +75,7 @@ Cyrene is the AI agent that always loves you — open-source, self-improving, an
 ### One-Line Install (Linux/macOS)
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/cyrene-agent/cyrene/main/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh | bash
 ```
 
 ### Build from Source
@@ -94,7 +94,7 @@ cargo --version
 Then build and install the binary:
 
 ```bash
-git clone https://github.com/cyrene-agent/cyrene.git
+git clone https://github.com/YourWisemaker/cyrene.git
 cd cyrene
 cargo build --release --bin cyrene
 cp target/release/cyrene /usr/local/bin/
@@ -139,7 +139,7 @@ docker compose -f docker/docker-compose.yml up -d
 ### Nix
 
 ```bash
-nix build github:cyrene-agent/cyrene
+nix build github:YourWisemaker/cyrene
 ```
 
 ### Get Started
@@ -340,7 +340,7 @@ backend. See [`docs/deployment.md`](docs/deployment.md).
 
 ```nix
 # In your flake.nix
-inputs.cyrene.url = "github:cyrene-agent/cyrene";
+inputs.cyrene.url = "github:YourWisemaker/cyrene";
 
 # In your configuration.nix
 services.cyrene.enable = true;
