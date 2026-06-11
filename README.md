@@ -78,8 +78,8 @@ Cyrene is the AI agent that always loves you — open-source, self-improving, an
 prebuilt binary for your platform on install:
 
 ```bash
-npm install -g cyrene     # or: pnpm add -g cyrene  /  yarn global add cyrene
-npx cyrene --help         # run once without installing
+npm install -g cyrene-agent     # or: pnpm add -g cyrene-agent  /  yarn global add cyrene-agent
+npx cyrene-agent --help         # run once without installing
 ```
 
 **Linux / macOS / Raspberry Pi** — downloads the prebuilt binary for your platform:
@@ -97,8 +97,8 @@ irm https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.ps1 | 
 **Other package managers:**
 
 ```bash
-brew tap YourWisemaker/cyrene && brew install cyrene   # Homebrew
-nix build github:YourWisemaker/cyrene                  # Nix
+brew tap YourWisemaker/cyrene && brew install cyrene-agent   # Homebrew
+nix build github:YourWisemaker/cyrene                        # Nix
 ```
 
 **Raspberry Pi:** both 64-bit (aarch64) and 32-bit (armv7) Raspberry Pi OS are

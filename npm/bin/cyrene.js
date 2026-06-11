@@ -14,7 +14,7 @@ const binPath = platform.binaryPath();
 if (!fs.existsSync(binPath)) {
   process.stderr.write(
     "[cyrene] native binary is missing. Re-run the install:\n" +
-      "  npm rebuild cyrene   (or)   npm install -g cyrene\n"
+      "  npm rebuild cyrene-agent   (or)   npm install -g cyrene-agent\n"
   );
   process.exit(1);
 }

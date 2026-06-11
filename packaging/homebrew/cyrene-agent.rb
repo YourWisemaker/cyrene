@@ -1,13 +1,16 @@
 # Homebrew formula for Cyrene.
 #
-# Intended for a tap (e.g. `brew tap YourWisemaker/cyrene && brew install cyrene`).
-# Copy this file to a `homebrew-cyrene` tap repo as `Formula/cyrene.rb`, or the
-# release workflow can sync it automatically. It installs the prebuilt binary
-# for the host platform — no Rust toolchain required.
+# Intended for a tap (e.g. `brew tap YourWisemaker/cyrene && brew install cyrene-agent`).
+# Copy this file to a `homebrew-cyrene` tap repo as `Formula/cyrene-agent.rb`, or
+# the release workflow can sync it automatically. It installs the prebuilt
+# binary for the host platform — no Rust toolchain required.
+#
+# The formula is named `cyrene-agent` (matching the npm package) because the
+# bare `cyrene` name is already taken; the installed command is still `cyrene`.
 #
 # After publishing a release, update `version` and the four `sha256` values with
 # the checksums from the `*.sha256` files attached to the GitHub Release.
-class Cyrene < Formula
+class CyreneAgent < Formula
   desc "The AI agent that always loves you"
   homepage "https://github.com/YourWisemaker/cyrene"
   version "0.1.0"

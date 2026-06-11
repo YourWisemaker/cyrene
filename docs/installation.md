@@ -41,22 +41,22 @@ PATH. Works on Windows PowerShell 5.1+ and PowerShell 7+, x64 and ARM64.
 The npm package downloads the prebuilt binary for your platform on install.
 
 ```bash
-npm install -g cyrene      # npm
-pnpm add -g cyrene         # pnpm
-yarn global add cyrene     # yarn
+npm install -g cyrene-agent      # npm
+pnpm add -g cyrene-agent         # pnpm
+yarn global add cyrene-agent     # yarn
 ```
 
 Or run without installing:
 
 ```bash
-npx cyrene --help
+npx cyrene-agent --help
 ```
 
 ### Homebrew (macOS / Linux)
 
 ```bash
 brew tap YourWisemaker/cyrene
-brew install cyrene
+brew install cyrene-agent
 ```
 
 ### Nix
