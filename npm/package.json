@@ -1,21 +1,29 @@
 {
   "name": "cyrene-agent",
   "version": "0.1.0",
-  "description": "Cyrene: the AI agent that always loves you — installs the prebuilt native binary for your platform.",
+  "description": "Cyrene: the AI agent that always loves you — a self-improving, open-source AI agent written in Rust. This package installs the prebuilt native binary for your platform.",
   "keywords": [
     "ai",
     "agent",
+    "ai-agent",
     "assistant",
+    "automation",
     "cli",
-    "rust"
+    "llm",
+    "openai",
+    "anthropic",
+    "ollama",
+    "rust",
+    "self-hosted"
   ],
-  "homepage": "https://github.com/YourWisemaker/cyrene",
+  "homepage": "https://github.com/YourWisemaker/cyrene#readme",
   "bugs": {
     "url": "https://github.com/YourWisemaker/cyrene/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YourWisemaker/cyrene.git"
+    "url": "git+https://github.com/YourWisemaker/cyrene.git",
+    "directory": "npm"
   },
   "license": "Apache-2.0",
   "author": "The Cyrene Authors",
@@ -24,11 +32,13 @@
     "cyrene": "bin/cyrene.js"
   },
   "scripts": {
-    "postinstall": "node lib/install.js"
+    "postinstall": "node lib/install.js",
+    "test": "node --check bin/cyrene.js && node --check lib/install.js && node --check lib/platform.js"
   },
   "files": [
     "bin/",
-    "lib/"
+    "lib/",
+    "README.md"
   ],
   "engines": {
     "node": ">=16"
@@ -42,5 +52,8 @@
     "x64",
     "arm64",
     "arm"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
