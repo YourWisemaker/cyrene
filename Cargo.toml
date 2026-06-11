@@ -46,6 +46,9 @@ tempfile = "3"
 proptest = "1"
 # HTTP client for model provider integrations (R12).
 reqwest = { version = "0.12.4", default-features = false, features = ["json", "rustls-tls"] }
+# Cross-platform raw-mode terminal control for the interactive CLI prompt
+# (live slash-command menu). Used only by cyrene-cli.
+crossterm = "0.28"
 
 # Shared lint configuration applied to every member crate that declares
 # `[lints] workspace = true`. CI runs `cargo clippy -- -D warnings`, so these

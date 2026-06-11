@@ -48,6 +48,20 @@ impl Group {
         }
     }
 
+    /// Short, fixed-feel label used by the startup card so every group lines
+    /// up in one column.
+    fn short(self) -> &'static str {
+        match self {
+            Group::Chat => "Chat",
+            Group::Models => "Models",
+            Group::Python => "Python",
+            Group::Integrations => "Automate",
+            Group::Memory => "Memory",
+            Group::Channels => "Channels",
+            Group::Info => "Info",
+        }
+    }
+
     /// Display order for help/suggestions.
     const ORDER: &'static [Group] = &[
         Group::Chat,
@@ -323,11 +337,11 @@ pub const COMMANDS: &[SlashCommand] = &[
 ];
 
 /// Builds a compact per-group command index for the startup card: each entry
-/// is `(group title, "/a  /b  /c")` with the primary command names joined.
-/// Reused by the welcome card so the startup display stays in sync with the
-/// single command table.
+/// is `(short label, ["/a", "/b", …])` with the primary command names. Reused
+/// by the welcome card so the startup display stays in sync with the single
+/// command table.
 #[must_use]
-pub fn command_index() -> Vec<(&'static str, String)> {
+pub fn command_groups() -> Vec<(&'static str, Vec<String>)> {
     let mut out = Vec::new();
     for &group in Group::ORDER {
         let names: Vec<String> = COMMANDS
@@ -336,7 +350,7 @@ pub fn command_index() -> Vec<(&'static str, String)> {
             .map(|c| format!("/{}", c.name))
             .collect();
         if !names.is_empty() {
-            out.push((group.title(), names.join("  ")));
+            out.push((group.short(), names));
         }
     }
     out
@@ -438,14 +452,11 @@ mod tests {
 
     #[test]
     fn command_index_covers_every_group_and_command() {
-        let idx = command_index();
+        let idx = command_groups();
         // Every ordered group with commands is present.
         assert_eq!(idx.len(), Group::ORDER.len());
         // Total commands listed equals the table size.
-        let listed: usize = idx
-            .iter()
-            .map(|(_, names)| names.split_whitespace().count())
-            .sum();
+        let listed: usize = idx.iter().map(|(_, names)| names.len()).sum();
         assert_eq!(listed, COMMANDS.len());
     }
 }

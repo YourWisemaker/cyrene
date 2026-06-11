@@ -7,6 +7,7 @@ mod agent;
 mod chatmem;
 mod crons;
 mod persona;
+mod prompt;
 mod pyexec;
 mod service;
 mod slash;
@@ -195,37 +196,82 @@ fn print_banner() {
 /// command index — the "what can I do here?" affordance, in the spirit of
 /// Hermes's startup panel but in Cyrene's voice.
 fn print_welcome_card(providers: &[ChatProvider], active: usize, model_ready: bool) {
-    const RULE: &str = "  ──────────────────────────────────────────────────────────────";
+    /// Inner content width between the box borders.
+    const CW: usize = 70;
+    /// Width of the command group-label column.
+    const LBL: usize = 10;
+
+    // One framed content line: "  │ <content padded to CW> │".
+    let line = |content: &str| {
+        let count = content.chars().count();
+        let padded = if count >= CW {
+            content.chars().take(CW).collect::<String>()
+        } else {
+            format!("{content}{}", " ".repeat(CW - count))
+        };
+        println!("  │ {padded} │");
+    };
+    let top = format!("  ╭{}╮", "─".repeat(CW + 2));
+    let mid = format!("  ├{}┤", "─".repeat(CW + 2));
+    let bot = format!("  ╰{}╯", "─".repeat(CW + 2));
 
     let model_line = match providers.get(active) {
         Some(p) if model_ready => format!("{} ({})", p.label(), p.model_label()),
         Some(p) => format!("{} — not initialized (try /connect)", p.label()),
         None => "none yet — type /connect to set one up".to_owned(),
     };
-
     let facts = chatmem::facts().len();
     let profile = chatmem::profile_notes().len();
     let skills = pyexec::list_scripts().len();
 
-    println!("{RULE}");
-    println!(
-        "   Cyrene v{}  ·  the AI agent that always loves you 💛",
+    println!("{top}");
+    line(&format!(
+        "Cyrene v{}  -  the AI agent that always loves you",
         update::current_version()
-    );
-    println!("   Model:  {model_line}");
-    println!(
-        "   Memory: {facts} fact{}  ·  {profile} about you  ·  {skills} skill{}",
+    ));
+    line("");
+    line(&format!("Model    {model_line}"));
+    line(&format!(
+        "Memory   {facts} fact{}, {profile} about you, {skills} skill{}",
         if facts == 1 { "" } else { "s" },
         if skills == 1 { "" } else { "s" },
-    );
-    println!("{RULE}");
-    println!("   What I can do  (type / then Enter to explore any time)");
-    for (title, names) in slash::command_index() {
-        println!("     {title:<14} {names}");
+    ));
+    println!("{mid}");
+    line("Commands   type  /  to see them live (filters as you type)");
+    line("");
+    for (label, names) in slash::command_groups() {
+        // Wrap the command names to the available width, hanging-indented
+        // under the label column so long groups stay inside the box.
+        let avail = CW - LBL;
+        let mut rows: Vec<String> = Vec::new();
+        let mut cur = String::new();
+        for n in &names {
+            let candidate = if cur.is_empty() {
+                n.clone()
+            } else {
+                format!("{cur} {n}")
+            };
+            if candidate.chars().count() > avail && !cur.is_empty() {
+                rows.push(std::mem::take(&mut cur));
+                cur = n.clone();
+            } else {
+                cur = candidate;
+            }
+        }
+        if !cur.is_empty() {
+            rows.push(cur);
+        }
+        for (i, row) in rows.iter().enumerate() {
+            if i == 0 {
+                line(&format!("{label:<LBL$}{row}"));
+            } else {
+                line(&format!("{}{row}", " ".repeat(LBL)));
+            }
+        }
     }
-    println!("{RULE}");
-    println!("   I build the tools, run them, schedule them, and remember what I learn.");
-    println!("   Just tell me what you want — I'll write the Python and wire it up.\n");
+    println!("{bot}");
+    println!("   I build the tools, run them, schedule them, and remember what I learn. 💛");
+    println!("   Tell me what you want — I'll write the Python and wire it up.\n");
 }
 
 fn cmd_doctor() {
@@ -1138,7 +1184,6 @@ fn offer_reply_python(
 
 fn run_chat() {
     use cyrene_core::{ChatMessage, Role};
-    use std::io::Write;
 
     let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
     let env_path = cyrene_dir.join(".env");
@@ -1194,25 +1239,16 @@ fn run_chat() {
     // REPL asks first. Off by default — running code is never a surprise.
     let mut autorun = false;
 
-    let stdin = std::io::stdin();
     loop {
-        print!("you ▸ ");
-        let _ = std::io::stdout().flush();
-
-        let mut line = String::new();
-        match stdin.read_line(&mut line) {
-            Ok(0) => {
+        let input_line = match prompt::read("you ▸ ") {
+            prompt::Read::Eof => {
                 println!("\nGoodbye 💛");
                 break;
             }
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("input error: {e}");
-                break;
-            }
-        }
+            prompt::Read::Line(l) => l,
+        };
 
-        let input = line.trim();
+        let input = input_line.trim();
         if input.is_empty() {
             continue;
         }

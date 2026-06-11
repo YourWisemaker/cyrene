@@ -12,9 +12,10 @@
 use serde::{Deserialize, Serialize};
 
 /// The communication persona applied to a response.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Persona {
     /// Default balanced tone.
+    #[default]
     Default,
     /// Emergency: crisp, prioritized, no pleasantries (R18.1).
     Emergency,
@@ -22,12 +23,6 @@ pub enum Persona {
     Creative,
     /// Away/wrap-up: summarize what was done, ready for review (R18.3).
     Away,
-}
-
-impl Default for Persona {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// The context used to select a persona.

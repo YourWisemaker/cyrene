@@ -312,7 +312,7 @@ fn dirs_home() -> PathBuf {
         .unwrap_or_default()
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 fn path_str(p: &std::path::Path) -> &str {
     p.to_str().unwrap_or_default()
 }
