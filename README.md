@@ -74,6 +74,14 @@ Cyrene is the AI agent that always loves you — open-source, self-improving, an
 
 ### Install
 
+**npm (cross-platform — Linux, macOS, Windows)** — the package downloads the
+prebuilt binary for your platform on install:
+
+```bash
+npm install -g cyrene     # or: pnpm add -g cyrene  /  yarn global add cyrene
+npx cyrene --help         # run once without installing
+```
+
 **Linux / macOS / Raspberry Pi** — downloads the prebuilt binary for your platform:
 
 ```bash
@@ -86,12 +94,9 @@ curl -fsSL https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install
 irm https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.ps1 | iex
 ```
 
-**Package managers:**
+**Other package managers:**
 
 ```bash
-npm install -g cyrene          # npm
-pnpm add -g cyrene             # pnpm
-npx cyrene --help              # run without installing
 brew tap YourWisemaker/cyrene && brew install cyrene   # Homebrew
 nix build github:YourWisemaker/cyrene                  # Nix
 ```
