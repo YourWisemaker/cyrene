@@ -190,6 +190,44 @@ fn print_banner() {
     println!("   v{}\n", update::current_version());
 }
 
+/// Prints the startup "welcome card" shown when the chat REPL opens: identity
+/// and model line, what Cyrene currently remembers, and a compact, grouped
+/// command index — the "what can I do here?" affordance, in the spirit of
+/// Hermes's startup panel but in Cyrene's voice.
+fn print_welcome_card(providers: &[ChatProvider], active: usize, model_ready: bool) {
+    const RULE: &str = "  ──────────────────────────────────────────────────────────────";
+
+    let model_line = match providers.get(active) {
+        Some(p) if model_ready => format!("{} ({})", p.label(), p.model_label()),
+        Some(p) => format!("{} — not initialized (try /connect)", p.label()),
+        None => "none yet — type /connect to set one up".to_owned(),
+    };
+
+    let facts = chatmem::facts().len();
+    let profile = chatmem::profile_notes().len();
+    let skills = pyexec::list_scripts().len();
+
+    println!("{RULE}");
+    println!(
+        "   Cyrene v{}  ·  the AI agent that always loves you 💛",
+        update::current_version()
+    );
+    println!("   Model:  {model_line}");
+    println!(
+        "   Memory: {facts} fact{}  ·  {profile} about you  ·  {skills} skill{}",
+        if facts == 1 { "" } else { "s" },
+        if skills == 1 { "" } else { "s" },
+    );
+    println!("{RULE}");
+    println!("   What I can do  (type / then Enter to explore any time)");
+    for (title, names) in slash::command_index() {
+        println!("     {title:<14} {names}");
+    }
+    println!("{RULE}");
+    println!("   I build the tools, run them, schedule them, and remember what I learn.");
+    println!("   Just tell me what you want — I'll write the Python and wire it up.\n");
+}
+
 fn cmd_doctor() {
     println!("Cyrene Doctor — checking system health\n");
 
@@ -1129,7 +1167,6 @@ fn run_chat() {
     if let Some(p) = providers.get(active) {
         match build_chat_model(p, &secrets) {
             Ok(m) => {
-                println!("Chatting with {} ({}).", p.label(), p.model_label());
                 model = Some(m);
             }
             Err(e) => {
@@ -1138,26 +1175,18 @@ fn run_chat() {
             }
         }
     } else {
-        println!("No model provider configured yet.");
-        eprintln!("    Use /connect to set one up.");
+        eprintln!("    No model provider configured yet — use /connect to set one up.");
     }
-    println!("Type a message, or /help for commands. /exit to quit.\n");
 
     // Auto-start the cron scheduler for this session so anything Cyrene
     // schedules ("report me X every morning") fires while the chat is open —
     // no separate `cyrene cron run` needed.
     crons::spawn_background();
 
-    // Base persona, augmented with anything Cyrene remembers from past sessions
-    // (facts saved via `/remember`). This is how memory "carries over" — the
-    // recalled facts ride in the system prompt of every new conversation.
-    let recalled = chatmem::facts().len();
-    if recalled > 0 {
-        println!(
-            "(recalled {recalled} saved memor{})",
-            if recalled == 1 { "y" } else { "ies" }
-        );
-    }
+    // Neat startup card: identity, model, what Cyrene remembers, and the
+    // grouped command index.
+    print_welcome_card(&providers, active, model.is_some());
+
     let mut history: Vec<ChatMessage> = vec![ChatMessage::system(rebuild_system_prompt())];
     let mut usage_total = cyrene_core::TokenUsage::default();
     let mut verbose = false;

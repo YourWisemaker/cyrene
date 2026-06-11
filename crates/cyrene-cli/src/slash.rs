@@ -322,6 +322,26 @@ pub const COMMANDS: &[SlashCommand] = &[
     },
 ];
 
+/// Builds a compact per-group command index for the startup card: each entry
+/// is `(group title, "/a  /b  /c")` with the primary command names joined.
+/// Reused by the welcome card so the startup display stays in sync with the
+/// single command table.
+#[must_use]
+pub fn command_index() -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    for &group in Group::ORDER {
+        let names: Vec<String> = COMMANDS
+            .iter()
+            .filter(|c| c.group == group)
+            .map(|c| format!("/{}", c.name))
+            .collect();
+        if !names.is_empty() {
+            out.push((group.title(), names.join("  ")));
+        }
+    }
+    out
+}
+
 /// Looks up a command by its name or any alias.
 #[must_use]
 pub fn lookup(token: &str) -> Option<&'static SlashCommand> {
@@ -414,5 +434,18 @@ mod tests {
                 assert!(seen.insert(a), "alias {a} collides with another command");
             }
         }
+    }
+
+    #[test]
+    fn command_index_covers_every_group_and_command() {
+        let idx = command_index();
+        // Every ordered group with commands is present.
+        assert_eq!(idx.len(), Group::ORDER.len());
+        // Total commands listed equals the table size.
+        let listed: usize = idx
+            .iter()
+            .map(|(_, names)| names.split_whitespace().count())
+            .sum();
+        assert_eq!(listed, COMMANDS.len());
     }
 }
