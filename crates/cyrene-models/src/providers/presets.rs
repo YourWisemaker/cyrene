@@ -121,6 +121,13 @@ pub const PRESETS: &[Preset] = &[
         input_cents_per_mtok: 0,
         output_cents_per_mtok: 0,
     },
+    Preset {
+        type_name: "commandcode",
+        base_url: "https://api.commandcode.ai/provider/v1",
+        default_model: "deepseek/deepseek-v4-flash",
+        input_cents_per_mtok: 0,
+        output_cents_per_mtok: 0,
+    },
 ];
 
 /// Looks up a preset by its config `type` name.

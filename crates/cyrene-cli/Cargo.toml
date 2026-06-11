@@ -21,11 +21,13 @@ cyrene-core = { path = "../cyrene-core" }
 cyrene-config = { path = "../cyrene-config" }
 cyrene-sdk = { path = "../cyrene-sdk" }
 clap = { version = "~4.4", features = ["derive"] }
-dialoguer = "0.11"
+dialoguer = { version = "0.11", features = ["password"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 tokio = { workspace = true }
+reqwest = { workspace = true }
+semver = "1"
 
 [dev-dependencies]
 # The end-to-end smoke test (task 23.3) drives the onboarded runtime: it builds
