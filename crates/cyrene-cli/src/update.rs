@@ -13,9 +13,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 /// `owner/repo` slug used for the GitHub Releases API.
-const REPO: &str = "cyrene-agent/cyrene";
+const REPO: &str = "YourWisemaker/cyrene";
+/// Human-facing releases page, shown by `cyrene version`.
+const RELEASES_URL: &str = "https://github.com/YourWisemaker/cyrene/releases";
 /// The official installer, re-run to perform an in-place update.
-const INSTALL_URL: &str = "https://raw.githubusercontent.com/cyrene-agent/cyrene/master/install.sh";
+const INSTALL_URL: &str =
+    "https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh";
 /// Minimum gap between network checks so the CLI stays snappy and quiet.
 const CHECK_INTERVAL_SECS: u64 = 24 * 60 * 60;
 /// Network checks are best-effort; never let one stall the CLI for long.
@@ -143,6 +146,27 @@ pub fn maybe_notify() {
             current_version()
         );
     }
+}
+
+/// Implements `cyrene version`: a Claude-style tracker that prints the installed
+/// version next to the latest published release and whether an update is due.
+/// Falls back gracefully to the installed version when offline.
+pub fn show_version() {
+    let current = current_version();
+    println!("Cyrene v{current}");
+
+    match latest_version(true) {
+        Some(latest) if is_newer(current, &latest) => {
+            println!("  Latest:   v{latest}  ↑ update available — run `cyrene update`");
+        }
+        Some(latest) => {
+            println!("  Latest:   v{latest}  ✓ up to date");
+        }
+        None => {
+            println!("  Latest:   (offline — couldn't reach GitHub to check)");
+        }
+    }
+    println!("  Releases: {RELEASES_URL}");
 }
 
 /// Implements `cyrene update`. With `check_only`, just reports status. Otherwise

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="cyrene-agent/cyrene"
+REPO="YourWisemaker/cyrene"
 BINARY="cyrene"
 INSTALL_DIR="${CYRENE_INSTALL_DIR:-/usr/local/bin}"
 
