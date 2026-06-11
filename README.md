@@ -101,6 +101,21 @@ detected automatically by the install script — no extra flags needed.
 
 See [docs/installation.md](docs/installation.md) for all methods and options.
 
+#### Supported Platforms
+
+Prebuilt single-binary releases are published for every platform below; the
+installers pick the right one automatically.
+
+| OS | Architecture | Target | Notes |
+|----|--------------|--------|-------|
+| Linux | x86_64 | `x86_64-unknown-linux-gnu` / `-musl` | musl build is fully static (Alpine, minimal distros) |
+| Linux | aarch64 | `aarch64-unknown-linux-gnu` / `-musl` | 64-bit ARM servers, Raspberry Pi OS 64-bit |
+| Linux | armv7 | `armv7-unknown-linux-gnueabihf` | Raspberry Pi OS 32-bit (Pi 3+) |
+| macOS | x86_64 | `x86_64-apple-darwin` | Intel Macs |
+| macOS | aarch64 | `aarch64-apple-darwin` | Apple Silicon (M-series) |
+| Windows | x86_64 | `x86_64-pc-windows-msvc` | Windows 10/11 x64 |
+| Windows | aarch64 | `aarch64-pc-windows-msvc` | Windows on ARM64 |
+
 ### Build from Source
 
 **Prerequisites:** Rust 1.82+ with Cargo. If you don't have it yet, install via [rustup](https://rustup.rs):
@@ -171,6 +186,15 @@ nix build github:YourWisemaker/cyrene
 cyrene onboard     # Interactive setup wizard
 cyrene doctor      # Check your configuration
 cyrene gateway     # Start Cyrene
+```
+
+Keep Cyrene current at any time — `cyrene update` re-runs the right installer for
+your platform (PowerShell on Windows, the shell script elsewhere):
+
+```bash
+cyrene update          # download and install the latest release
+cyrene update --check  # check whether an update is available
+cyrene version         # show installed vs. latest version
 ```
 
 ---
@@ -392,6 +416,8 @@ cyrene extensions list List installed extensions
 cyrene catalog list   List optional components
 cyrene tools list     List available tools
 cyrene cron list      List scheduled jobs
+cyrene update         Update to the latest release (--check to only check)
+cyrene version        Show installed and latest version
 ```
 
 ---
