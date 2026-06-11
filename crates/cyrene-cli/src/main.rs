@@ -663,11 +663,7 @@ fn copy_to_clipboard(text: &str) -> bool {
     };
 
     for (cmd, args) in candidates {
-        if let Ok(mut child) = Command::new(cmd)
-            .args(*args)
-            .stdin(Stdio::piped())
-            .spawn()
-        {
+        if let Ok(mut child) = Command::new(cmd).args(*args).stdin(Stdio::piped()).spawn() {
             if let Some(mut stdin) = child.stdin.take() {
                 let _ = stdin.write_all(text.as_bytes());
             }
@@ -922,21 +918,22 @@ fn run_chat() {
                 }
                 "verbose" => {
                     verbose = !verbose;
-                    println!("Per-reply token counts {}.", if verbose { "on" } else { "off" });
+                    println!(
+                        "Per-reply token counts {}.",
+                        if verbose { "on" } else { "off" }
+                    );
                 }
                 "save" => match save_transcript(&cyrene_dir, &history) {
                     Ok(path) => println!("Transcript saved to {}", path.display()),
                     Err(e) => eprintln!("  ✗ Could not save transcript: {e}"),
                 },
-                "copy" => {
-                    match history.iter().rev().find(|m| m.role == Role::Assistant) {
-                        Some(last) if copy_to_clipboard(&last.content) => {
-                            println!("Copied the last reply to the clipboard.");
-                        }
-                        Some(_) => println!("Could not access the clipboard on this system."),
-                        None => println!("No assistant message to copy yet."),
+                "copy" => match history.iter().rev().find(|m| m.role == Role::Assistant) {
+                    Some(last) if copy_to_clipboard(&last.content) => {
+                        println!("Copied the last reply to the clipboard.");
                     }
-                }
+                    Some(_) => println!("Could not access the clipboard on this system."),
+                    None => println!("No assistant message to copy yet."),
+                },
                 "retry" => {
                     if let Some(m) = model.clone() {
                         // Drop the previous reply (if any) and re-run the last user turn.
