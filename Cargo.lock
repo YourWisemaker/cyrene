@@ -339,9 +339,11 @@ dependencies = [
 name = "cyrene-cli"
 version = "1.0.9"
 dependencies = [
+ "chrono",
  "clap",
  "cyrene-config",
  "cyrene-core",
+ "cyrene-events",
  "cyrene-ledger",
  "cyrene-models",
  "cyrene-runtime",

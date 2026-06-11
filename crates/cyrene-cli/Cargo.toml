@@ -21,6 +21,8 @@ cyrene-core = { path = "../cyrene-core" }
 cyrene-config = { path = "../cyrene-config" }
 cyrene-models = { path = "../cyrene-models" }
 cyrene-sdk = { path = "../cyrene-sdk" }
+cyrene-events = { path = "../cyrene-events" }
+chrono = { workspace = true }
 clap = { version = "~4.4", features = ["derive"] }
 dialoguer = { version = "0.11", features = ["password"] }
 serde = { workspace = true }

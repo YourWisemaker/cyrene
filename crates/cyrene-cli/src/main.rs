@@ -2,6 +2,13 @@ use clap::{Parser, Subcommand};
 
 mod update;
 
+mod chatmem;
+mod crons;
+mod pyexec;
+mod slash;
+mod telegram;
+mod whatsapp;
+
 const BANNER: &str = r#"
    ╔════════════════════════════════════════════════════════╗
    ║                                                        ║
@@ -32,6 +39,10 @@ enum Commands {
     Agent,
     /// Start an interactive chat with Cyrene.
     Chat,
+    /// Connect Cyrene to Telegram and answer messages (needs TELEGRAM_BOT_TOKEN).
+    Telegram,
+    /// Connect Cyrene to WhatsApp via the Cloud API webhook (needs WHATSAPP_* keys).
+    Whatsapp,
     Gateway,
     Dashboard,
     Onboard {
@@ -117,6 +128,13 @@ enum CronAction {
         channel: Option<String>,
     },
     Remove {
+        #[arg(long)]
+        name: String,
+    },
+    /// Run the cron daemon: tick every minute and fire due jobs.
+    Run,
+    /// Run a single job now and deliver its output (for testing).
+    RunOnce {
         #[arg(long)]
         name: String,
     },
@@ -330,11 +348,6 @@ fn cmd_model_list() {
     }
 }
 
-fn cmd_cron_list() {
-    println!("Cron Jobs:\n");
-    println!("  (No cron jobs configured yet. Use `cyrene cron add` to create one.)");
-}
-
 fn cmd_catalog_list() {
     let catalog_dir = std::env::current_dir()
         .unwrap_or_default()
@@ -421,35 +434,6 @@ fn build_chat_model(
     secrets: &cyrene_config::SecretResolver,
 ) -> Result<std::sync::Arc<dyn cyrene_core::Model>, cyrene_config::BoxError> {
     cyrene_models::create_provider(&p.type_name, &p.alias, &p.entry, secrets)
-}
-
-/// Prints the in-chat slash-command help.
-fn print_chat_help() {
-    println!("\nCommands:");
-    println!("  Chat");
-    println!("    /clear, /new     Start a fresh conversation");
-    println!("    /retry           Re-run your last message");
-    println!("    /undo            Remove the last exchange");
-    println!("    /history         Show the transcript");
-    println!("    /save            Save the transcript to JSON");
-    println!("    /copy            Copy the last reply to the clipboard");
-    println!("  Models");
-    println!("    /models          List configured providers (● = active)");
-    println!("    /model [name]    Switch provider/model (no arg opens a picker)");
-    println!("    /connect         Add or update a provider + API key");
-    println!("    /reload          Re-read ~/.cyrene/.env");
-    println!("  Info & tools");
-    println!("    /status          Active provider, model, and token counts");
-    println!("    /usage           Token usage this session");
-    println!("    /verbose         Toggle per-reply token counts");
-    println!("    /doctor          Configuration health check");
-    println!("    /tools           List built-in tools");
-    println!("    /skills          List bundled skills");
-    println!("    /version         Show installed vs latest version");
-    println!("    /update          Update Cyrene to the latest release");
-    println!("    /fortune         A little encouragement");
-    println!("    /help            Show this help");
-    println!("    /exit, /quit     Leave the chat\n");
 }
 
 /// Lists configured providers, marking the active one.
@@ -756,6 +740,253 @@ fn save_transcript(
     Ok(path)
 }
 
+/// Builds the configured default-provider model (alias `default`, else first),
+/// loading secrets from `~/.cyrene/.env`. Shared by the standalone Telegram and
+/// gateway entry points.
+fn build_default_model() -> Option<std::sync::Arc<dyn cyrene_core::Model>> {
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
+    let secrets = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+    let providers = load_chat_providers();
+    let idx = providers
+        .iter()
+        .position(|p| p.alias == "default")
+        .unwrap_or(0);
+    providers
+        .get(idx)
+        .and_then(|p| build_chat_model(p, &secrets).ok())
+}
+
+/// `cyrene telegram` / `cyrene gateway`: connect Cyrene to Telegram using
+/// `TELEGRAM_BOT_TOKEN` (from `~/.cyrene/.env`) and answer messages with the
+/// configured model. Blocks until interrupted.
+fn run_telegram() {
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
+    let _ = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+
+    let Ok(token) = std::env::var("TELEGRAM_BOT_TOKEN") else {
+        println!("No TELEGRAM_BOT_TOKEN set.");
+        println!("Run `cyrene onboard` and choose the Telegram channel, or add the token to");
+        println!("~/.cyrene/.env, then try again. Create a bot with @BotFather on Telegram.");
+        return;
+    };
+    if token.trim().is_empty() {
+        println!("TELEGRAM_BOT_TOKEN is empty. Add your @BotFather token to ~/.cyrene/.env.");
+        return;
+    }
+
+    let Some(model) = build_default_model() else {
+        println!("No usable model provider. Run `cyrene onboard` (or `cyrene` then /connect).");
+        return;
+    };
+
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("  ✗ Could not start the async runtime: {e}");
+            return;
+        }
+    };
+    telegram::run(&rt, model, token.trim());
+}
+
+/// `cyrene whatsapp`: run the WhatsApp Cloud API webhook bridge, answering
+/// messages with the configured model. Needs `WHATSAPP_TOKEN`,
+/// `WHATSAPP_PHONE_NUMBER_ID`, and `WHATSAPP_VERIFY_TOKEN` in `~/.cyrene/.env`.
+/// Blocks until interrupted.
+fn run_whatsapp() {
+    let cyrene_dir = cyrene_config::cyrene_home_dir().unwrap_or_default();
+    let _ = cyrene_config::SecretResolver::with_dotenv_path(cyrene_dir.join(".env"));
+
+    let settings = match whatsapp::Settings::from_env() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("WhatsApp is not configured: {e}");
+            println!("Add WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, and WHATSAPP_VERIFY_TOKEN to");
+            println!(
+                "~/.cyrene/.env (from the Meta WhatsApp Cloud API dashboard), then try again."
+            );
+            return;
+        }
+    };
+
+    let Some(model) = build_default_model() else {
+        println!("No usable model provider. Run `cyrene onboard` (or `cyrene` then /connect).");
+        return;
+    };
+
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("  ✗ Could not start the async runtime: {e}");
+            return;
+        }
+    };
+    whatsapp::run(&rt, model, settings);
+}
+
+/// Cyrene's base persona for the chat REPL. Kept as a constant so the live
+/// session and any rebuild (after `/remember`/`/forget`) stay identical.
+const BASE_PERSONA: &str = "You are Cyrene, the AI agent that always loves you. \
+     Be warm, supportive, and concise, and help the user get things done. \
+     When a task calls for computation, scraping, data wrangling, or calling an \
+     API, write a complete Python program in a ```python code block — the user \
+     can run it directly in this chat.\n\n\
+     You can set up real integrations through these chat commands; when a user \
+     asks for one, write the script and then tell them the exact commands to run:\n\
+     - API keys / secrets: tell them to run `/key NAME value` (e.g. \
+     `/key OPENWEATHER_API_KEY abc123`). Your Python then reads it with \
+     os.environ[\"NAME\"] — never hard-code secrets.\n\
+     - Save a reusable script: after you write a ```python block, they run \
+     `/script <name>` to save it as ~/.cyrene/scripts/<name>.py, then `/run <name>` \
+     to execute it.\n\
+     - Schedule a recurring report: `/cron <name> <script> <schedule> [channel]` \
+     (schedule can be `daily`, `hourly`, `08:00`, or a 5-field cron; channel can be \
+     `cli`, `telegram:<chat_id>`, or `discord`). The script's printed output is \
+     delivered to the channel each time.\n\
+     So 'find cheap flights and tell me on Telegram every morning' becomes: write a \
+     scraper that prints a report → /script flights → /cron flights flights 08:00 \
+     telegram:<chat_id>. Make scripts print a clear, human-readable report to stdout.";
+
+/// Builds the system prompt: [`BASE_PERSONA`] plus any remembered facts. Called
+/// at startup and whenever memories change so context reflects them at once.
+fn rebuild_system_prompt() -> String {
+    let mut s = String::from(BASE_PERSONA);
+    if let Some(mem) = chatmem::context_block() {
+        s.push_str("\n\n");
+        s.push_str(&mem);
+    }
+    s
+}
+
+/// How long an in-chat Python run may take before it's killed.
+const PY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Runs an inline Python snippet (`/py`) and prints the captured output.
+fn run_python_snippet(code: &str) {
+    println!("\n  running Python…");
+    match pyexec::run_code(code, PY_TIMEOUT) {
+        Ok(outcome) => print_py_outcome(&outcome),
+        Err(e) => eprintln!("  ✗ {e}\n"),
+    }
+}
+
+/// Runs a Python file (`/run <file.py>`) and prints the captured output.
+fn run_python_path(path: &str) {
+    let Some(py) = pyexec::interpreter() else {
+        eprintln!("  ✗ No Python interpreter found. Install Python 3 and try again.\n");
+        return;
+    };
+    // Accept either a filesystem path or a saved-script name.
+    let Some(p) = pyexec::resolve_script(path) else {
+        eprintln!("  ✗ No such file or saved script: {path}\n");
+        return;
+    };
+    println!("\n  running {}…", p.display());
+    match pyexec::run_file(py, &p, PY_TIMEOUT) {
+        Ok(outcome) => print_py_outcome(&outcome),
+        Err(e) => eprintln!("  ✗ {e}\n"),
+    }
+}
+
+/// The Python from Cyrene's most recent reply (all blocks joined), or `None`.
+/// Backs `/script`, which saves what she just wrote as a named script.
+fn last_assistant_python(history: &[cyrene_core::ChatMessage]) -> Option<String> {
+    use cyrene_core::Role;
+    let reply = history.iter().rev().find(|m| m.role == Role::Assistant)?;
+    let blocks = pyexec::extract_python_blocks(&reply.content);
+    if blocks.is_empty() {
+        return None;
+    }
+    Some(blocks.join("\n"))
+}
+
+/// Pretty-prints a Python run's stdout/stderr/exit status.
+fn print_py_outcome(outcome: &pyexec::PyOutcome) {
+    if !outcome.stdout.trim().is_empty() {
+        println!("\n{}", outcome.stdout.trim_end());
+    }
+    if !outcome.stderr.trim().is_empty() {
+        eprintln!("\n  stderr:\n{}", outcome.stderr.trim_end());
+    }
+    match outcome.status {
+        Some(0) => println!("\n  ✓ exit 0\n"),
+        Some(c) => println!("\n  ✗ exit {c}\n"),
+        None => println!("\n  ✗ timed out\n"),
+    }
+}
+
+/// After Cyrene replies, look for ```python blocks she wrote and — with consent
+/// — run them, feeding the output back so she can react. This is the
+/// "write a script and run it" loop the user asked for. `autorun` skips the
+/// prompt; otherwise we only ask when stdin is a real terminal.
+fn offer_reply_python(
+    rt: &tokio::runtime::Runtime,
+    model: &std::sync::Arc<dyn cyrene_core::Model>,
+    history: &mut Vec<cyrene_core::ChatMessage>,
+    usage_total: &mut cyrene_core::TokenUsage,
+    verbose: bool,
+    autorun: bool,
+) {
+    use cyrene_core::{ChatMessage, Role};
+    use std::io::IsTerminal;
+
+    let Some(reply) = history.iter().rev().find(|m| m.role == Role::Assistant) else {
+        return;
+    };
+    let blocks = pyexec::extract_python_blocks(&reply.content);
+    if blocks.is_empty() {
+        return;
+    }
+
+    let consent = if autorun {
+        true
+    } else if std::io::stdin().is_terminal() {
+        use std::io::Write;
+        print!(
+            "  ↳ Cyrene wrote {} Python block{}. Run {}? [y/N] ",
+            blocks.len(),
+            if blocks.len() == 1 { "" } else { "s" },
+            if blocks.len() == 1 { "it" } else { "them" }
+        );
+        let _ = std::io::stdout().flush();
+        let mut ans = String::new();
+        let _ = std::io::stdin().read_line(&mut ans);
+        matches!(ans.trim().to_lowercase().as_str(), "y" | "yes")
+    } else {
+        false
+    };
+    if !consent {
+        return;
+    }
+
+    let mut combined = String::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if blocks.len() > 1 {
+            println!("\n  running block {}/{}…", i + 1, blocks.len());
+        } else {
+            println!("\n  running Python…");
+        }
+        match pyexec::run_code(block, PY_TIMEOUT) {
+            Ok(outcome) => {
+                print_py_outcome(&outcome);
+                combined.push_str(&outcome.summary());
+                combined.push('\n');
+            }
+            Err(e) => {
+                eprintln!("  ✗ {e}\n");
+                combined.push_str(&format!("[error] {e}\n"));
+            }
+        }
+    }
+
+    // Feed the result back so Cyrene can interpret it and continue the task.
+    history.push(ChatMessage::user(format!(
+        "I ran the Python you wrote. Here is the output:\n{combined}\n\
+         Briefly interpret the result and say what to do next."
+    )));
+    complete_turn(rt, model, history, usage_total, verbose);
+}
+
 fn run_chat() {
     use cyrene_core::{ChatMessage, Role};
     use std::io::Write;
@@ -801,12 +1032,22 @@ fn run_chat() {
     }
     println!("Type a message, or /help for commands. /exit to quit.\n");
 
-    let mut history: Vec<ChatMessage> = vec![ChatMessage::system(
-        "You are Cyrene, the AI agent that always loves you. \
-         Be warm, supportive, and concise, and help the user get things done.",
-    )];
+    // Base persona, augmented with anything Cyrene remembers from past sessions
+    // (facts saved via `/remember`). This is how memory "carries over" — the
+    // recalled facts ride in the system prompt of every new conversation.
+    let recalled = chatmem::facts().len();
+    if recalled > 0 {
+        println!(
+            "(recalled {recalled} saved memor{})",
+            if recalled == 1 { "y" } else { "ies" }
+        );
+    }
+    let mut history: Vec<ChatMessage> = vec![ChatMessage::system(rebuild_system_prompt())];
     let mut usage_total = cyrene_core::TokenUsage::default();
     let mut verbose = false;
+    // When on, Python blocks in Cyrene's replies run automatically; otherwise the
+    // REPL asks first. Off by default — running code is never a surprise.
+    let mut autorun = false;
 
     let stdin = std::io::stdin();
     loop {
@@ -838,7 +1079,12 @@ fn run_chat() {
             let arg = parts.next().unwrap_or("").trim();
 
             match cmd {
-                "help" | "h" | "?" => print_chat_help(),
+                // A bare `/` (or trailing space) — show the suggestion menu,
+                // the "what can I type here?" affordance from Claude/Hermes.
+                "" => {
+                    slash::print_suggestions("");
+                }
+                "help" | "h" | "?" => slash::print_help(),
                 "models" | "providers" => print_chat_models(&providers, active),
                 "model" | "use" | "switch" => {
                     if providers.is_empty() {
@@ -986,13 +1232,172 @@ fn run_chat() {
                     println!();
                 }
                 "update" => update::run_update(false),
+                "py" | "python" => {
+                    if arg.is_empty() {
+                        println!("Usage: /py <code>   e.g. /py print(2 ** 10)");
+                    } else {
+                        run_python_snippet(arg);
+                    }
+                }
+                "run" => {
+                    if arg.is_empty() {
+                        println!("Usage: /run <file.py | saved-script-name>");
+                    } else {
+                        run_python_path(arg);
+                    }
+                }
+                "autorun" => {
+                    autorun = !autorun;
+                    println!(
+                        "Auto-running Python from replies is now {}.",
+                        if autorun { "ON (use with care)" } else { "off" }
+                    );
+                }
+                "key" => {
+                    // `/key NAME value` — stash a secret in ~/.cyrene/.env so the
+                    // scripts Cyrene writes can read it via os.environ. The single
+                    // hardest part of "integrate me with this API" made trivial.
+                    let mut kv = arg.splitn(2, char::is_whitespace);
+                    let name = kv.next().unwrap_or("").trim();
+                    let value = kv.next().unwrap_or("").trim();
+                    if name.is_empty() || value.is_empty() {
+                        println!("Usage: /key NAME value   e.g. /key OPENWEATHER_API_KEY abc123");
+                    } else {
+                        let _ =
+                            write_env_secrets(&env_path, &[(name.to_owned(), value.to_owned())]);
+                        std::env::set_var(name, value);
+                        secrets = cyrene_config::SecretResolver::with_dotenv_path(&env_path);
+                        chatmem::record_fact(&format!(
+                            "has an API key in env var {name} (saved to .env)"
+                        ));
+                        history[0] = ChatMessage::system(rebuild_system_prompt());
+                        println!(
+                            "✓ Saved {name} to ~/.cyrene/.env. Scripts can read it with \
+                             os.environ[\"{name}\"]."
+                        );
+                    }
+                }
+                "script" => {
+                    // Save the most recent Python block Cyrene wrote as a named,
+                    // re-runnable script under ~/.cyrene/scripts/<name>.py.
+                    if arg.is_empty() {
+                        println!("Usage: /script <name>   (saves Cyrene's last Python block)");
+                    } else {
+                        match last_assistant_python(&history) {
+                            Some(code) => match pyexec::save_script(arg, &code) {
+                                Ok(path) => {
+                                    chatmem::record_fact(&format!(
+                                        "has a saved script `{}` at {}",
+                                        pyexec::sanitize_name(arg).unwrap_or_default(),
+                                        path.display()
+                                    ));
+                                    println!(
+                                        "✓ Saved script to {}. Run it with /run {} or schedule \
+                                         it with /cron.",
+                                        path.display(),
+                                        pyexec::sanitize_name(arg).unwrap_or_default()
+                                    );
+                                }
+                                Err(e) => eprintln!("  ✗ {e}"),
+                            },
+                            None => println!(
+                                "No Python block in Cyrene's last reply to save. Ask her to write \
+                                 one first."
+                            ),
+                        }
+                    }
+                }
+                "scripts" => {
+                    let scripts = pyexec::list_scripts();
+                    if scripts.is_empty() {
+                        println!(
+                            "\nNo saved scripts yet. Use /script <name> after Cyrene writes one.\n"
+                        );
+                    } else {
+                        println!("\nSaved scripts (~/.cyrene/scripts):");
+                        for s in &scripts {
+                            println!("  - {s}   (run: /run {s})");
+                        }
+                        println!();
+                    }
+                }
+                "cron" => {
+                    // `/cron <name> <script> <schedule> [channel]` — schedule a
+                    // saved script to run and deliver its output on a schedule.
+                    let mut p = arg.splitn(4, char::is_whitespace);
+                    let name = p.next().unwrap_or("").trim();
+                    let script = p.next().unwrap_or("").trim();
+                    let schedule = p.next().unwrap_or("").trim();
+                    let channel = p.next().unwrap_or("").trim();
+                    if name.is_empty() || script.is_empty() || schedule.is_empty() {
+                        println!(
+                            "Usage: /cron <name> <script> <schedule> [channel]\n  \
+                             e.g. /cron flights flights 08:00 telegram:123456789\n  \
+                             schedule: daily | hourly | HH:MM | a 5-field cron string\n  \
+                             channel:  cli | telegram:<chat_id> | discord"
+                        );
+                    } else {
+                        let ch = if channel.is_empty() { "cli" } else { channel };
+                        match crons::add(name, schedule, script, ch) {
+                            Ok(()) => println!(
+                                "  Start the scheduler with `cyrene cron run` (keep it running), \
+                                 or test now with `cyrene cron run-once --name {name}`."
+                            ),
+                            Err(e) => eprintln!("  ✗ {e}"),
+                        }
+                    }
+                }
+                "remember" | "note" => {
+                    if arg.is_empty() {
+                        println!("Usage: /remember <fact>   (kept across sessions)");
+                    } else {
+                        chatmem::record_fact(arg);
+                        // Reflect it immediately in this session's context too.
+                        history[0] = ChatMessage::system(rebuild_system_prompt());
+                        println!("Got it — I'll remember that. 💛");
+                    }
+                }
+                "memories" | "recall" => {
+                    let facts = chatmem::facts();
+                    if facts.is_empty() {
+                        println!("\nNo saved memories yet. Use /remember <fact> to add one.\n");
+                    } else {
+                        println!("\nWhat I remember:");
+                        for (i, f) in facts.iter().enumerate() {
+                            println!("  {}. {f}", i + 1);
+                        }
+                        println!();
+                    }
+                }
+                "forget" => {
+                    let n = chatmem::forget_facts();
+                    history[0] = ChatMessage::system(rebuild_system_prompt());
+                    println!(
+                        "Cleared {n} saved memor{}.",
+                        if n == 1 { "y" } else { "ies" }
+                    );
+                }
+                "telegram" => {
+                    println!("\nConnecting to Telegram… (Ctrl-C to return)\n");
+                    run_telegram();
+                    println!();
+                }
+                "whatsapp" => {
+                    println!("\nConnecting to WhatsApp… (Ctrl-C to return)\n");
+                    run_whatsapp();
+                    println!();
+                }
                 "fortune" => println!("\n  {}\n", random_fortune()),
                 "exit" | "quit" | "q" => {
                     println!("Goodbye 💛");
                     break;
                 }
                 other => {
-                    println!("Unknown command `/{other}`. Type /help for the list.");
+                    // Unknown command: surface the closest matches instead of a
+                    // dead-end error (the Claude/Hermes "did you mean" behavior).
+                    if slash::print_suggestions(other) == 0 {
+                        println!("Unknown command `/{other}`. Type /help for the list.");
+                    }
                 }
             }
             continue;
@@ -1003,13 +1408,42 @@ fn run_chat() {
             break;
         }
 
+        // Pasting a @BotFather token connects Telegram on the spot — the
+        // smoothest possible "hook me up to Telegram" path.
+        if let Some(tok) = telegram::detect_token(input) {
+            println!("\n  That looks like a Telegram bot token — saving it and connecting…\n");
+            let _ = write_env_secrets(&env_path, &[("TELEGRAM_BOT_TOKEN".to_owned(), tok.clone())]);
+            std::env::set_var("TELEGRAM_BOT_TOKEN", &tok);
+            run_telegram();
+            println!();
+            continue;
+        }
+
+        // A bare command word (e.g. `model`) is almost always a missed slash;
+        // nudge toward the command form, then still answer as chat.
+        if let Some(c) = slash::lookup(input) {
+            println!("  (tip: type /{} to run that command)", c.name);
+        }
+
         let Some(active_model) = model.clone() else {
             println!("No active model. Use /connect to add a provider key, or /models.");
             continue;
         };
 
+        // Remember every input so Cyrene can learn from how it's used and so
+        // past sessions are recoverable (~/.cyrene/memory/chat.jsonl).
+        chatmem::record_input(input);
+
         history.push(ChatMessage::user(input));
         complete_turn(&rt, &active_model, &mut history, &mut usage_total, verbose);
+        offer_reply_python(
+            &rt,
+            &active_model,
+            &mut history,
+            &mut usage_total,
+            verbose,
+            autorun,
+        );
     }
 }
 
@@ -1044,6 +1478,12 @@ fn main() {
             }
             Commands::Chat => {
                 run_chat();
+            }
+            Commands::Telegram => {
+                run_telegram();
+            }
+            Commands::Whatsapp => {
+                run_whatsapp();
             }
             Commands::Gateway => {
                 print_banner();
@@ -1125,24 +1565,24 @@ fn main() {
                 }
             },
             Commands::Cron { action } => match action {
-                CronAction::List => cmd_cron_list(),
+                CronAction::List => crons::list(),
                 CronAction::Add {
                     name,
                     schedule,
                     task,
                     channel,
                 } => {
-                    println!("Adding cron job: {name}");
-                    println!("  Schedule: {schedule}");
-                    println!("  Task: {task}");
-                    if let Some(ch) = channel {
-                        println!("  Channel: {ch}");
+                    let ch = channel.unwrap_or_else(|| "cli".to_owned());
+                    if let Err(e) = crons::add(&name, &schedule, &task, &ch) {
+                        eprintln!("  ✗ {e}");
                     }
-                    println!("(Cron scheduler not yet wired)");
                 }
-                CronAction::Remove { name } => {
-                    println!("Removing cron job: {name}");
-                    println!("(Cron scheduler not yet wired)");
+                CronAction::Remove { name } => crons::remove(&name),
+                CronAction::Run => crons::run_daemon(),
+                CronAction::RunOnce { name } => {
+                    if let Err(e) = crons::run_once(&name) {
+                        eprintln!("  ✗ {e}");
+                    }
                 }
             },
             Commands::Tools { action } => match action {
