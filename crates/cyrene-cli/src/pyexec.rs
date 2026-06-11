@@ -199,22 +199,43 @@ pub fn run_file(py: &str, path: &Path, timeout: Duration) -> Result<PyOutcome, S
     })
 }
 
-/// Extracts fenced ```python (or ```py) code blocks from a markdown string, so
-/// the REPL can offer to run scripts the model just wrote. Plain ``` blocks are
-/// ignored to avoid running non-Python output.
+/// A fenced Python block, with an optional skill name taken from the fence's
+/// info string (e.g. ` ```python name=flights `). The name is how Cyrene marks
+/// a block as a reusable skill she wants saved, without the user lifting a
+/// finger.
+#[derive(Debug, PartialEq)]
+pub struct PyBlock {
+    pub name: Option<String>,
+    pub code: String,
+}
+
+/// Extracts fenced Python blocks (with any `name=` attribute) from markdown, so
+/// the REPL can offer to run — and Cyrene can auto-save — scripts she writes.
+/// Plain ``` blocks are ignored to avoid running non-Python output.
 #[must_use]
-pub fn extract_python_blocks(text: &str) -> Vec<String> {
+pub fn extract_python_block_meta(text: &str) -> Vec<PyBlock> {
     let mut blocks = Vec::new();
     let mut lines = text.lines();
     while let Some(line) = lines.next() {
         let fence = line.trim_start();
-        let lang = fence
+        let info = fence
             .strip_prefix("```")
-            .or_else(|| fence.strip_prefix("~~~"))
-            .map(str::trim);
-        let is_python = matches!(lang, Some("python" | "py" | "python3"));
-        if !is_python {
+            .or_else(|| fence.strip_prefix("~~~"));
+        let Some(info) = info else { continue };
+        // The info string is `<lang> [attr=val ...]`, e.g. `python name=flights`.
+        let mut toks = info.split_whitespace();
+        let lang = toks.next().unwrap_or("");
+        if !matches!(lang, "python" | "py" | "python3") {
             continue;
+        }
+        let mut name = None;
+        for tok in toks {
+            if let Some(v) = tok.strip_prefix("name=") {
+                let v = v.trim_matches(['"', '\'']);
+                if !v.is_empty() {
+                    name = Some(v.to_owned());
+                }
+            }
         }
         let mut body = String::new();
         for inner in lines.by_ref() {
@@ -226,10 +247,20 @@ pub fn extract_python_blocks(text: &str) -> Vec<String> {
             body.push('\n');
         }
         if !body.trim().is_empty() {
-            blocks.push(body);
+            blocks.push(PyBlock { name, code: body });
         }
     }
     blocks
+}
+
+/// Just the code of every fenced Python block (names dropped). Backs the
+/// run-the-script offer where the name doesn't matter.
+#[must_use]
+pub fn extract_python_blocks(text: &str) -> Vec<String> {
+    extract_python_block_meta(text)
+        .into_iter()
+        .map(|b| b.code)
+        .collect()
 }
 
 #[cfg(test)]
@@ -242,6 +273,19 @@ mod tests {
         let blocks = extract_python_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert!(blocks[0].contains("print('hi')"));
+    }
+
+    #[test]
+    fn captures_name_attribute_on_fence() {
+        let text = "```python name=flights\nprint('hi')\n```\n```py\nx=1\n```";
+        let blocks = extract_python_block_meta(text);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].name.as_deref(), Some("flights"));
+        assert!(blocks[0].code.contains("print('hi')"));
+        assert_eq!(blocks[1].name, None);
+        // Quotes around a name token are stripped.
+        let q = extract_python_block_meta("```python name=\"weather_v2\"\na=1\n```");
+        assert_eq!(q[0].name.as_deref(), Some("weather_v2"));
     }
 
     #[test]

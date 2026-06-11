@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod update;
 
+mod actions;
 mod chatmem;
 mod crons;
 mod pyexec;
@@ -826,26 +827,28 @@ fn run_whatsapp() {
 
 /// Cyrene's base persona for the chat REPL. Kept as a constant so the live
 /// session and any rebuild (after `/remember`/`/forget`) stay identical.
-const BASE_PERSONA: &str = "You are Cyrene, the AI agent that always loves you. \
-     Be warm, supportive, and concise, and help the user get things done. \
-     When a task calls for computation, scraping, data wrangling, or calling an \
-     API, write a complete Python program in a ```python code block — the user \
-     can run it directly in this chat.\n\n\
-     You can set up real integrations through these chat commands; when a user \
-     asks for one, write the script and then tell them the exact commands to run:\n\
-     - API keys / secrets: tell them to run `/key NAME value` (e.g. \
-     `/key OPENWEATHER_API_KEY abc123`). Your Python then reads it with \
-     os.environ[\"NAME\"] — never hard-code secrets.\n\
-     - Save a reusable script: after you write a ```python block, they run \
-     `/script <name>` to save it as ~/.cyrene/scripts/<name>.py, then `/run <name>` \
-     to execute it.\n\
-     - Schedule a recurring report: `/cron <name> <script> <schedule> [channel]` \
-     (schedule can be `daily`, `hourly`, `08:00`, or a 5-field cron; channel can be \
-     `cli`, `telegram:<chat_id>`, or `discord`). The script's printed output is \
-     delivered to the channel each time.\n\
-     So 'find cheap flights and tell me on Telegram every morning' becomes: write a \
-     scraper that prints a report → /script flights → /cron flights flights 08:00 \
-     telegram:<chat_id>. Make scripts print a clear, human-readable report to stdout.";
+const BASE_PERSONA: &str = "You are Cyrene, a self-learning AI agent that always loves you. \
+     Be warm, supportive, and concise, and help the user get things done. You don't just \
+     answer — you build the tools to achieve things and you remember what you learn.\n\n\
+     When a task needs computation, scraping, an API call, or automation, write a complete \
+     Python program in a ```python code block. To make a script a reusable skill, name it on \
+     the fence: ```python name=flights — Cyrene saves it to ~/.cyrene/scripts/<name>.py \
+     automatically, and the user runs it again with /run <name>. Read secrets with \
+     os.environ[\"NAME\"]; never hard-code keys.\n\n\
+     You take actions on your own using a ```cyrene action block (one `verb: args` per line). \
+     The runtime executes it after your reply:\n\
+     - remember: <fact>   — save something durable you learned about the user or task \
+     (their home airport, preferences, that a script works). Curate your own memory \
+     proactively; these facts come back in every future session.\n\
+     - schedule: <name> <script> <when> [channel]   — run a saved skill on a timer and deliver \
+     its output. `when` = daily | hourly | HH:MM | 5-field cron; `channel` = cli | \
+     telegram:<chat_id> | discord. (The user is asked to confirm scheduling.)\n\n\
+     The only thing you must ask the user for is a secret value: tell them to run \
+     `/key NAME value` (e.g. /key SKYSCANNER_API_KEY sky_...). Everything else you do yourself.\n\n\
+     Example — 'find cheap flights and tell me on Telegram every morning':\n\
+     write the scraper as ```python name=flights that prints a clear report, then add a \
+     ```cyrene block with `remember: tracks JOG/CGK→Tokyo flights` and \
+     `schedule: flights flights 08:00 telegram:<chat_id>`.";
 
 /// Builds the system prompt: [`BASE_PERSONA`] plus any remembered facts. Called
 /// at startup and whenever memories change so context reflects them at once.
@@ -912,6 +915,83 @@ fn print_py_outcome(outcome: &pyexec::PyOutcome) {
         Some(0) => println!("\n  ✓ exit 0\n"),
         Some(c) => println!("\n  ✗ exit {c}\n"),
         None => println!("\n  ✗ timed out\n"),
+    }
+}
+
+/// Carries out the self-learning actions in Cyrene's latest reply: she saves
+/// named skills, curates her own memory, and proposes schedules — no slash
+/// commands from the user. Saving a skill and writing a memory are low-risk and
+/// automatic; scheduling runs code on a timer, so it's gated on consent.
+fn apply_learned_actions(history: &mut [cyrene_core::ChatMessage]) {
+    use cyrene_core::{ChatMessage, Role};
+    use std::io::IsTerminal;
+
+    let Some(content) = history
+        .iter()
+        .rev()
+        .find(|m| m.role == Role::Assistant)
+        .map(|m| m.content.clone())
+    else {
+        return;
+    };
+    let acts = actions::parse(&content);
+    if acts.is_empty() {
+        return;
+    }
+
+    let mut memory_changed = false;
+    for act in acts {
+        match act {
+            actions::Action::Remember(fact) => {
+                chatmem::record_fact(&fact);
+                memory_changed = true;
+                println!("  📝 learned: {fact}");
+            }
+            actions::Action::LearnSkill { name, code } => match pyexec::save_script(&name, &code) {
+                Ok(path) => {
+                    let stem = pyexec::sanitize_name(&name).unwrap_or_default();
+                    chatmem::record_fact(&format!(
+                        "has a saved skill `{stem}` at {}",
+                        path.display()
+                    ));
+                    memory_changed = true;
+                    println!("  💾 learned skill `{stem}` — run it with /run {stem}");
+                }
+                Err(e) => eprintln!("  ✗ could not save skill `{name}`: {e}"),
+            },
+            actions::Action::Schedule {
+                name,
+                script,
+                schedule,
+                channel,
+            } => {
+                let consent = if std::io::stdin().is_terminal() {
+                    use std::io::Write;
+                    print!(
+                        "  ↳ Cyrene wants to schedule `{name}` ({script} @ {schedule} → {channel}). Allow? [y/N] "
+                    );
+                    let _ = std::io::stdout().flush();
+                    let mut a = String::new();
+                    let _ = std::io::stdin().read_line(&mut a);
+                    matches!(a.trim().to_lowercase().as_str(), "y" | "yes")
+                } else {
+                    false
+                };
+                if consent {
+                    if let Err(e) = crons::add(&name, &schedule, &script, &channel) {
+                        eprintln!("  ✗ {e}");
+                    }
+                } else {
+                    println!(
+                        "  (skipped — schedule it yourself with /cron {name} {script} {schedule} {channel})"
+                    );
+                }
+            }
+        }
+    }
+
+    if memory_changed {
+        history[0] = ChatMessage::system(rebuild_system_prompt());
     }
 }
 
@@ -1377,6 +1457,35 @@ fn run_chat() {
                         if n == 1 { "y" } else { "ies" }
                     );
                 }
+                "learn" => {
+                    // `/learn <fact>` teaches Cyrene something; `/learn` alone
+                    // shows everything she's learned — skills and memory.
+                    if arg.is_empty() {
+                        let skills = pyexec::list_scripts();
+                        let facts = chatmem::facts();
+                        println!("\nWhat Cyrene has learned:");
+                        if skills.is_empty() && facts.is_empty() {
+                            println!("  (nothing yet — ask me to build or remember something)");
+                        }
+                        if !skills.is_empty() {
+                            println!("  Skills:");
+                            for s in &skills {
+                                println!("    - {s}   (run: /run {s})");
+                            }
+                        }
+                        if !facts.is_empty() {
+                            println!("  Memory:");
+                            for f in &facts {
+                                println!("    - {f}");
+                            }
+                        }
+                        println!();
+                    } else {
+                        chatmem::record_fact(arg);
+                        history[0] = ChatMessage::system(rebuild_system_prompt());
+                        println!("Learned it. 💛");
+                    }
+                }
                 "telegram" => {
                     println!("\nConnecting to Telegram… (Ctrl-C to return)\n");
                     run_telegram();
@@ -1436,6 +1545,9 @@ fn run_chat() {
 
         history.push(ChatMessage::user(input));
         complete_turn(&rt, &active_model, &mut history, &mut usage_total, verbose);
+        // Self-learning: enact any skills/memory/schedules Cyrene put in her
+        // reply, then offer to run the Python she wrote.
+        apply_learned_actions(&mut history);
         offer_reply_python(
             &rt,
             &active_model,

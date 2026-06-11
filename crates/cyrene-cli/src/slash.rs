@@ -214,6 +214,13 @@ pub const COMMANDS: &[SlashCommand] = &[
         group: Group::Memory,
     },
     SlashCommand {
+        name: "learn",
+        aliases: &[],
+        summary: "Teach a fact, or show what Cyrene has learned",
+        arg: "[fact]",
+        group: Group::Memory,
+    },
+    SlashCommand {
         name: "forget",
         aliases: &[],
         summary: "Clear saved memories",
