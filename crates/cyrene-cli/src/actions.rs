@@ -30,6 +30,8 @@ use crate::pyexec;
 pub enum Action {
     /// Persist a durable memory fact (agent-curated memory).
     Remember(String),
+    /// Persist a durable observation about who the user is (user model).
+    RememberUser(String),
     /// Save a named Python block as a reusable skill/integration.
     LearnSkill { name: String, code: String },
     /// Schedule a saved script to run and report on a timer.
@@ -79,6 +81,9 @@ fn parse_directive(line: &str) -> Option<Action> {
     match verb.trim().to_lowercase().as_str() {
         "remember" | "note" | "learn" if !rest.is_empty() => {
             Some(Action::Remember(rest.to_owned()))
+        }
+        "remember_user" | "remember-user" | "user" | "profile" if !rest.is_empty() => {
+            Some(Action::RememberUser(rest.to_owned()))
         }
         "schedule" | "cron" => {
             // `<name> <script> <when> [channel]`. The `when` keyword forms are
@@ -182,6 +187,19 @@ mod tests {
                 schedule: "daily".to_owned(),
                 channel: "cli".to_owned(),
             }]
+        );
+    }
+
+    #[test]
+    fn parses_remember_user_into_profile_action() {
+        let reply =
+            "```cyrene\nremember_user: the user is a Rust engineer who prefers terse replies\n```";
+        let actions = parse(reply);
+        assert_eq!(
+            actions,
+            vec![Action::RememberUser(
+                "the user is a Rust engineer who prefers terse replies".to_owned()
+            )]
         );
     }
 

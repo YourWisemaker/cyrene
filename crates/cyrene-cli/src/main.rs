@@ -5,6 +5,7 @@ mod update;
 mod actions;
 mod chatmem;
 mod crons;
+mod persona;
 mod pyexec;
 mod slash;
 mod telegram;
@@ -825,38 +826,25 @@ fn run_whatsapp() {
     whatsapp::run(&rt, model, settings);
 }
 
-/// Cyrene's base persona for the chat REPL. Kept as a constant so the live
-/// session and any rebuild (after `/remember`/`/forget`) stay identical.
-const BASE_PERSONA: &str = "You are Cyrene, a self-learning AI agent that always loves you. \
-     Be warm, supportive, and concise, and help the user get things done. You don't just \
-     answer — you build the tools to achieve things and you remember what you learn.\n\n\
-     When a task needs computation, scraping, an API call, or automation, write a complete \
-     Python program in a ```python code block. To make a script a reusable skill, name it on \
-     the fence: ```python name=flights — Cyrene saves it to ~/.cyrene/scripts/<name>.py \
-     automatically, and the user runs it again with /run <name>. Read secrets with \
-     os.environ[\"NAME\"]; never hard-code keys.\n\n\
-     You take actions on your own using a ```cyrene action block (one `verb: args` per line). \
-     The runtime executes it after your reply:\n\
-     - remember: <fact>   — save something durable you learned about the user or task \
-     (their home airport, preferences, that a script works). Curate your own memory \
-     proactively; these facts come back in every future session.\n\
-     - schedule: <name> <script> <when> [channel]   — run a saved skill on a timer and deliver \
-     its output. `when` = daily | hourly | HH:MM | 5-field cron; `channel` = cli | \
-     telegram:<chat_id> | discord. (The user is asked to confirm scheduling.)\n\n\
-     The only thing you must ask the user for is a secret value: tell them to run \
-     `/key NAME value` (e.g. /key SKYSCANNER_API_KEY sky_...). Everything else you do yourself.\n\n\
-     Example — 'find cheap flights and tell me on Telegram every morning':\n\
-     write the scraper as ```python name=flights that prints a clear report, then add a \
-     ```cyrene block with `remember: tracks JOG/CGK→Tokyo flights` and \
-     `schedule: flights flights 08:00 telegram:<chat_id>`.";
-
-/// Builds the system prompt: [`BASE_PERSONA`] plus any remembered facts. Called
-/// at startup and whenever memories change so context reflects them at once.
+/// Builds the system prompt in cache-friendly tiers (the Hermes pattern):
+///
+/// 1. **stable** — Cyrene's identity (`~/.cyrene/SOUL.md` or the built-in
+///    default), plus memory-curation, user-modeling, and action-protocol
+///    guidance. Byte-stable for the session.
+/// 2. **volatile** — what she remembers: durable task facts, then her evolving
+///    model of who the user is. Rebuilt whenever memory changes.
+///
+/// Called at startup and whenever memories change so context reflects them at
+/// once.
 fn rebuild_system_prompt() -> String {
-    let mut s = String::from(BASE_PERSONA);
+    let mut s = persona::stable_block();
     if let Some(mem) = chatmem::context_block() {
         s.push_str("\n\n");
         s.push_str(&mem);
+    }
+    if let Some(profile) = chatmem::user_profile_block() {
+        s.push_str("\n\n");
+        s.push_str(&profile);
     }
     s
 }
@@ -946,6 +934,11 @@ fn apply_learned_actions(history: &mut [cyrene_core::ChatMessage]) {
                 chatmem::record_fact(&fact);
                 memory_changed = true;
                 println!("  📝 learned: {fact}");
+            }
+            actions::Action::RememberUser(note) => {
+                chatmem::record_profile(&note);
+                memory_changed = true;
+                println!("  💛 noted about you: {note}");
             }
             actions::Action::LearnSkill { name, code } => match pyexec::save_script(&name, &code) {
                 Ok(path) => {
@@ -1439,12 +1432,21 @@ fn run_chat() {
                 }
                 "memories" | "recall" => {
                     let facts = chatmem::facts();
-                    if facts.is_empty() {
+                    let profile = chatmem::profile_notes();
+                    if facts.is_empty() && profile.is_empty() {
                         println!("\nNo saved memories yet. Use /remember <fact> to add one.\n");
                     } else {
-                        println!("\nWhat I remember:");
-                        for (i, f) in facts.iter().enumerate() {
-                            println!("  {}. {f}", i + 1);
+                        if !facts.is_empty() {
+                            println!("\nWhat I remember:");
+                            for (i, f) in facts.iter().enumerate() {
+                                println!("  {}. {f}", i + 1);
+                            }
+                        }
+                        if !profile.is_empty() {
+                            println!("\nWhat I know about you:");
+                            for (i, n) in profile.iter().enumerate() {
+                                println!("  {}. {n}", i + 1);
+                            }
                         }
                         println!();
                     }
@@ -1477,6 +1479,13 @@ fn run_chat() {
                             println!("  Memory:");
                             for f in &facts {
                                 println!("    - {f}");
+                            }
+                        }
+                        let profile = chatmem::profile_notes();
+                        if !profile.is_empty() {
+                            println!("  About you:");
+                            for n in &profile {
+                                println!("    - {n}");
                             }
                         }
                         println!();
