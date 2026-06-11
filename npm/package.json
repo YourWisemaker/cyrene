@@ -1,0 +1,46 @@
+{
+  "name": "cyrene",
+  "version": "0.1.0",
+  "description": "Cyrene: the AI agent that always loves you — installs the prebuilt native binary for your platform.",
+  "keywords": [
+    "ai",
+    "agent",
+    "assistant",
+    "cli",
+    "rust"
+  ],
+  "homepage": "https://github.com/YourWisemaker/cyrene",
+  "bugs": {
+    "url": "https://github.com/YourWisemaker/cyrene/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YourWisemaker/cyrene.git"
+  },
+  "license": "Apache-2.0",
+  "author": "The Cyrene Authors",
+  "type": "commonjs",
+  "bin": {
+    "cyrene": "bin/cyrene.js"
+  },
+  "scripts": {
+    "postinstall": "node lib/install.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64",
+    "arm"
+  ]
+}

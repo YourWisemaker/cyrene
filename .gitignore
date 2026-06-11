@@ -29,6 +29,8 @@ Thumbs.db
 node_modules/
 package-lock.json
 package.json
+# ...but the published npm wrapper's manifest must be tracked (release.yml).
+!npm/package.json
 
 # Nix
 result
