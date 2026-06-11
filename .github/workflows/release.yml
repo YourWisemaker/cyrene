@@ -204,7 +204,8 @@ jobs:
   # Keep the committed source in sync with the released tag so a local
   # `cargo build` (or `cyrene version`) on master reports the latest version,
   # not a stale one. Runs after the release is published; commits the bumped
-  # Cargo.toml + Cargo.lock back to master only if they actually changed.
+  # Cargo.toml + Cargo.lock + npm/package.json back to master only if they
+  # actually changed.
   sync-version:
     name: sync workspace version to master
     needs: release
@@ -217,6 +218,9 @@ jobs:
         with:
           ref: master
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - name: Bump workspace version and Cargo.lock
         run: |
           set -euo pipefail
@@ -229,16 +233,22 @@ jobs:
           mv Cargo.toml.tmp Cargo.toml
           # Refresh the workspace crate entries in Cargo.lock without touching deps.
           cargo update --workspace --offline 2>/dev/null || cargo update --workspace
+      - name: Bump npm package version
+        working-directory: npm
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          npm version "$version" --no-git-tag-version --allow-same-version
       - name: Commit and push if changed
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          if git diff --quiet -- Cargo.toml Cargo.lock; then
+          if git diff --quiet -- Cargo.toml Cargo.lock npm/package.json; then
             echo "Version already in sync — nothing to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock
-          git commit -m "chore(release): sync workspace version to ${version}"
+          git add Cargo.toml Cargo.lock npm/package.json
+          git commit -m "chore(release): sync workspace + npm version to ${version}"
           git push origin master

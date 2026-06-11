@@ -97,8 +97,7 @@ irm https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.ps1 | 
 **Other package managers:**
 
 ```bash
-brew tap YourWisemaker/cyrene && brew install cyrene-agent   # Homebrew
-nix build github:YourWisemaker/cyrene                        # Nix
+nix build github:YourWisemaker/cyrene                  # Nix
 ```
 
 **Raspberry Pi:** both 64-bit (aarch64) and 32-bit (armv7) Raspberry Pi OS are

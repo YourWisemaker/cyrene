@@ -52,13 +52,6 @@ Or run without installing:
 npx cyrene-agent --help
 ```
 
-### Homebrew (macOS / Linux)
-
-```bash
-brew tap YourWisemaker/cyrene
-brew install cyrene-agent
-```
-
 ### Nix
 
 ```bash
