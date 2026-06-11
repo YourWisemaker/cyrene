@@ -64,6 +64,7 @@ Cyrene doesn't just answer — she **builds the tools to get things done**. When
 - **Scheduled automations** — natural-language recurring tasks ("every day at 7am, summarize X and message me") run as full agent turns and deliver back to the chat they were set up in
 - **Always-on** — `cyrene service install` registers a background service (launchd on macOS, systemd on Linux) so the scheduler and chatbot keep running across reboots
 - **Same brain on every channel** — CLI, Telegram, and WhatsApp all run the full agent loop (persona, Python execution, memory, scheduling), not a stripped-down echo
+- **Multi-channel** — CLI, Telegram, Slack, Discord, WhatsApp, email, Signal, Matrix
 - **Live command menu** — a Claude-style `/` menu filters commands as you type, right in the terminal
 - **Bundled skill library** — 200+ curated skills across 20 categories
 - **Extension SDK** — load custom providers, channels, and tools via `cyrene.plugin.toml`
