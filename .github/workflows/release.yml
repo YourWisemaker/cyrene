@@ -239,16 +239,23 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           npm version "$version" --no-git-tag-version --allow-same-version
+      - name: Bump Nix flake version
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          # Update the single `version = "x.y.z";` in the buildRustPackage block.
+          sed -i -E "s/version = \"[0-9]+\.[0-9]+\.[0-9]+\";/version = \"${version}\";/" nix/flake.nix
+          grep -n 'version = "' nix/flake.nix || true
       - name: Commit and push if changed
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          if git diff --quiet -- Cargo.toml Cargo.lock npm/package.json; then
+          if git diff --quiet -- Cargo.toml Cargo.lock npm/package.json nix/flake.nix; then
             echo "Version already in sync — nothing to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock npm/package.json
-          git commit -m "chore(release): sync workspace + npm version to ${version}"
+          git add Cargo.toml Cargo.lock npm/package.json nix/flake.nix
+          git commit -m "chore(release): sync workspace + npm + nix version to ${version}"
           git push origin master
