@@ -32,14 +32,7 @@
 
 ## Why Cyrene?
 
-Most open-source agents do one thing well but leave gaps everywhere else. Cyrene fuses the best ideas from the field into a single binary — and fills the gaps none of them cover alone.
-
-| Agent | Strength | Gap Cyrene fills |
-|-------|----------|-----------------|
-| **ZeroClaw** | Security-first Rust runtime, OS sandboxing, signed receipts | No self-improvement, no token compression, no skill library |
-| **OpenClaw** | 25+ channels, omnipresent, always-on | TypeScript runtime, no cryptographic audit trail, no shadow execution |
-| **Hermes Agent** | Self-improving skills, memory loop, trajectory compression | Python (slow, heavy), no OS sandboxing, no signed ledger |
-| **Odysseus** | Beautiful self-hosted workspace UI, deep research | Python/Docker stack, no safety pipeline, no approval gates |
+Most open-source agents do one thing well but leave gaps everywhere else. Some are secure but don't learn. Some learn but aren't fast or auditable. Some run everywhere but aren't safe. Cyrene fuses the best ideas from the field into a single binary — secure, learning, omnipresent, efficient, and auditable — and fills the gaps none of them cover alone.
 
 **Cyrene's unique combination:**
 
@@ -51,7 +44,7 @@ Most open-source agents do one thing well but leave gaps everywhere else. Cyrene
 - **Multi-model routing with budget guardrails** — local models handle the common case; the router escalates only on repeated failure and only if budget allows.
 - **Extension SDK with permission scoping** — plugins declare what they need and get sandboxed accordingly.
 
-> ZeroClaw is secure but doesn't learn. Hermes learns but isn't fast or auditable. OpenClaw is everywhere but isn't safe. Cyrene is all of these — secure, learning, omnipresent, efficient, and auditable — in a single binary that always loves you.
+> Secure, learning, omnipresent, efficient, and auditable — all in a single binary that always loves you.
 
 ---
 
