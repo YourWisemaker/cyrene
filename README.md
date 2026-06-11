@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="cyrenelogo.jpeg" alt="Cyrene Logo" width="300">
+  <img src="cyrenelogo.png" alt="Cyrene Logo" width="300">
 </p>
 
 <h1 align="center">Cyrene</h1>
@@ -22,6 +22,10 @@
   <a href="https://github.com/YourWisemaker/cyrene">
     <img src="https://img.shields.io/badge/Rust-1.82+-orange?logo=rust" alt="Rust">
   </a>
+</p>
+
+<p align="center">
+  <img src="cyrene-book.jpg" alt="The story of Cyrene" width="600">
 </p>
 
 ---
