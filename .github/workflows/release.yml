@@ -197,8 +197,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::warning title=npm publish skipped::NPM_TOKEN secret is not set. Add an npm automation token at Settings → Secrets and variables → Actions → NPM_TOKEN to enable automatic publishing."
-            exit 0
+            echo "::error title=npm publish failed::NPM_TOKEN secret is not set, so this release was NOT published to npm. Add an npm automation token at Settings → Secrets and variables → Actions → NPM_TOKEN, then re-run this workflow. Failing hard on purpose so the npm version never silently lags behind the release tag."
+            exit 1
           fi
           name="$(node -p "require('./package.json').name")"
           version="$(node -p "require('./package.json').version")"
