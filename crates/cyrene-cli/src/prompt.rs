@@ -28,6 +28,9 @@ pub enum Read {
     Line(String),
     /// End of input — Ctrl-D on an empty line, or a closed stdin.
     Eof,
+    /// Ctrl-C pressed at the prompt. The caller decides what to do; pressing it
+    /// twice in a row is treated as a request to quit.
+    Interrupt,
 }
 
 /// Maximum command rows shown in the live menu before a "+N more" hint.
@@ -103,7 +106,7 @@ fn read_interactive(prompt: &str) -> std::io::Result<Read> {
         match (key.code, key.modifiers) {
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
                 queue!(out, Print("^C"))?;
-                break Read::Line(String::new());
+                break Read::Interrupt;
             }
             (KeyCode::Char('d'), KeyModifiers::CONTROL) if buf.is_empty() => {
                 break Read::Eof;

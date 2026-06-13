@@ -1244,14 +1244,28 @@ fn run_chat() {
     // it off any time with `/autorun` if you'd rather approve each run.
     let mut autorun = true;
 
+    // Tracks a lone Ctrl-C waiting for a second press. Any real input clears it,
+    // so only two interrupts in a row quit.
+    let mut interrupted = false;
+
     loop {
         let input_line = match prompt::read("you ▸ ") {
             prompt::Read::Eof => {
                 println!("\nGoodbye 💛");
                 break;
             }
+            prompt::Read::Interrupt => {
+                if interrupted {
+                    println!("Goodbye 💛");
+                    break;
+                }
+                interrupted = true;
+                println!("(Press Ctrl-C again or type /exit to quit.)");
+                continue;
+            }
             prompt::Read::Line(l) => l,
         };
+        interrupted = false;
 
         let input = input_line.trim();
         if input.is_empty() {
