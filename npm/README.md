@@ -39,7 +39,7 @@ Raspberry Pi (32-bit and 64-bit Raspberry Pi OS) is detected automatically.
 ```bash
 cyrene onboard     # configure a model provider and channel
 cyrene doctor      # verify your setup
-cyrene gateway     # start Cyrene
+cyrene             # start chatting (interactive REPL)
 cyrene --help      # all commands
 ```
 

@@ -21,7 +21,7 @@ Override defaults with environment variables:
 
 ```bash
 CYRENE_INSTALL_DIR="$HOME/.local/bin" \
-CYRENE_VERSION=0.1.0 \
+CYRENE_VERSION=1.1.9 \
 curl -fsSL https://raw.githubusercontent.com/YourWisemaker/cyrene/master/install.sh | bash
 ```
 
@@ -97,7 +97,7 @@ CYRENE_FROM_SOURCE=1 curl -fsSL https://raw.githubusercontent.com/YourWisemaker/
 1. Run `cyrene onboard` to configure a model provider and channel
 2. Add your API keys (the onboarding wizard creates `.env` for you)
 3. Run `cyrene doctor` to verify your setup
-4. Run `cyrene gateway` to start Cyrene
+4. Run `cyrene` to start chatting (or `cyrene gateway` for the runtime gateway)
 
 ## Updating
 

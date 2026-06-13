@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-acp"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-bridge"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-channels"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-core",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-cli"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "clap",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-compress"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "proptest",
  "tempfile",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-config"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-core",
@@ -411,7 +411,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-core"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "chrono",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-dashboard"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-core",
@@ -436,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-events"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "cyrene-core",
@@ -450,7 +450,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-hardware"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-core",
@@ -461,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-hub"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cyrene-skills",
  "ed25519-dalek",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-ledger"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "cyrene-core",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-memory"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-config",
@@ -510,7 +510,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-models"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "chrono",
@@ -526,7 +526,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-presence"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "serde",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-render"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-runtime"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cyrene-config",
  "cyrene-core",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-safety"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "cyrene-config",
@@ -577,7 +577,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-sdk"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "cyrene-core",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-skills"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "chrono",
  "serde",
@@ -603,7 +603,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-state"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cyrene-core",
  "proptest",
@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-tools"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "cyrene-compress",
  "cyrene-core",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "cyrene-trajectory"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "proptest",
  "serde",

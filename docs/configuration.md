@@ -34,6 +34,34 @@ command_allowlist = ["git", "ls", "cat"]
 
 Secrets are **never** stored in the config file. Each entry references a secret by the name of the environment variable that holds it (e.g. `api_key_env`). Values come from your environment or `.env` file.
 
+## Channels
+
+A channel block declares a messaging surface the agent listens on. Each runs the
+**full** agent loop — persona, Python execution, memory, scheduling — so Cyrene
+behaves identically whether you reach her from the terminal or a chat app.
+
+```toml
+[channels.cli.default]                 # interactive terminal REPL
+
+[channels.telegram.personal]
+token_env = "TELEGRAM_BOT_TOKEN"       # bot token via env var, never inline
+allowlist = ["123456789"]              # only these chat IDs may talk to her
+
+[channels.whatsapp.cloud]
+token_env = "WHATSAPP_TOKEN"
+```
+
+Built-in channels include CLI, Telegram, Slack, Discord, WhatsApp, email, Signal,
+and Matrix; more can be added through the Extension SDK.
+
+## Persona
+
+Cyrene's persona — tone, style, and how she refers to you — is editable as plain
+Markdown at `~/.cyrene/SOUL.md`. Alongside it she keeps an agent-curated **user
+model** that deepens across sessions as she learns durable facts about you. Edit
+`SOUL.md` to reshape how she speaks; manage what she remembers with the
+`/remember` and `/memories` commands (or just ask her in chat).
+
 ## Autonomy Levels
 
 | Level | Default | Description |

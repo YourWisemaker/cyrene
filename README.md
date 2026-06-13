@@ -287,6 +287,12 @@ User/Event → Channel Gateway → Injection Scanner → Model Router
 | `cyrene-cli` | CLI binary, onboarding, doctor |
 | `cyrene-dashboard` | Local web dashboard control plane |
 | `cyrene-bridge` | Workspace bridge (browser, terminal, cloud) |
+| `cyrene-acp` | Agent Client Protocol adapter — drive the agent loop from an editor/IDE over JSON-RPC |
+| `cyrene-presence` | Presence + Persona engines — real-time thinking signals and the editable persona |
+| `cyrene-trajectory` | Trajectory compressor — distills a subagent's execution log into a reusable blueprint |
+| `cyrene-compress` | RTK-style compression of tool output before it enters model context |
+| `cyrene-render` | Report renderer — formats agent output as PDF and interactive HTML |
+| `cyrene-hub` | Skills Hub client — publish, search, and install community skills |
 
 ---
 
@@ -500,6 +506,20 @@ Cyrene implements defense-in-depth:
 6. **Injection Scanner** — defense against prompt injection attacks
 
 See [docs/security.md](docs/security.md) for the full security model.
+
+---
+
+## Documentation
+
+Full guides live in [`docs/`](docs/):
+
+| Guide | What's inside |
+|-------|---------------|
+| [Installation](docs/installation.md) | Every install method (npm, script, Nix, Docker, source) and Raspberry Pi notes |
+| [Configuration](docs/configuration.md) | The `config.toml` reference: providers, channels, persona, autonomy, secrets |
+| [Architecture](docs/architecture.md) | Request lifecycle, core traits, the safety pipeline, and the workspace crate map |
+| [Security Model](docs/security.md) | Defense-in-depth layers, the memory trust boundaries, and operator best practices |
+| [Deployment](docs/deployment.md) | Low-resource unattended hosting and remote (SSH/container) execution backends |
 
 ---
 

@@ -57,6 +57,20 @@ All untrusted content (web pages, tool output, external messages) passes through
 - Exfiltration pattern detection
 - Quarantine and logging on detection
 
+## Memory Trust Boundaries
+
+Cyrene's knowledge graph is guarded by two independent trust boundaries, so a
+poisoned web page or a hijacked session can never quietly rewrite what Cyrene
+remembers:
+
+- **Untrusted content is scanned before it can be stored.** Anything that comes
+  from outside the user — a fetched web page, tool output, an inbound message —
+  passes the Injection Scanner *before* it reaches memory, and is neutralized on
+  recall. It can never resurface later as a smuggled instruction.
+- **Memory is owned by the authenticated user.** Reads and writes are scoped to
+  the owner, so a spoofed or hijacked session is refused at the write. Only the
+  owner can read or rewrite their facts and user model.
+
 ## Best Practices
 
 - Never raise autonomy without reviewing the implications
