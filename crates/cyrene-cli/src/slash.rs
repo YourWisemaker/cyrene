@@ -179,7 +179,7 @@ pub const COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         name: "autorun",
         aliases: &[],
-        summary: "Toggle auto-running Python from replies",
+        summary: "Toggle auto-running Python from replies (on by default)",
         arg: "",
         group: Group::Python,
     },

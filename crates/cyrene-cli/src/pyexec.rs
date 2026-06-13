@@ -7,9 +7,12 @@
 //! reply so the REPL can offer to execute generated scripts (the Hermes-style
 //! "agent writes a script and runs it" loop).
 //!
-//! Safety: running code is never silent or implicit. Inline `/py` and `/run`
-//! are explicit user actions, and auto-running blocks from a reply is gated
-//! behind a per-session opt-in (`/autorun`) plus a printed preview.
+//! Behaviour: Cyrene runs the Python she writes herself. Auto-run is on by
+//! default in the REPL (and always on for messaging channels, which have no TTY
+//! to ask), so she can write a script and act on its output in one turn. The
+//! REPL announces the run before it happens and prints the output; turn auto-run
+//! off with `/autorun` to approve each run instead. Inline `/py` and `/run`
+//! remain explicit user actions.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

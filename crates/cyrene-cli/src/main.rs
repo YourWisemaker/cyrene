@@ -236,6 +236,7 @@ fn print_welcome_card(providers: &[ChatProvider], active: usize, model_ready: bo
         if facts == 1 { "" } else { "s" },
         if skills == 1 { "" } else { "s" },
     ));
+    line("Autorun  on — Cyrene runs the Python she writes (/autorun to toggle)");
     println!("{mid}");
     line("Commands   type  /  to see them live (filters as you type)");
     line("");
@@ -1238,8 +1239,10 @@ fn run_chat() {
     let mut usage_total = cyrene_core::TokenUsage::default();
     let mut verbose = false;
     // When on, Python blocks in Cyrene's replies run automatically; otherwise the
-    // REPL asks first. Off by default — running code is never a surprise.
-    let mut autorun = false;
+    // REPL asks first. On by default so Cyrene acts as an agent — she writes a
+    // script and runs it herself, the same way the messaging channels do. Turn
+    // it off any time with `/autorun` if you'd rather approve each run.
+    let mut autorun = true;
 
     loop {
         let input_line = match prompt::read("you ▸ ") {
@@ -1433,7 +1436,11 @@ fn run_chat() {
                     autorun = !autorun;
                     println!(
                         "Auto-running Python from replies is now {}.",
-                        if autorun { "ON (use with care)" } else { "off" }
+                        if autorun {
+                            "ON — Cyrene runs the scripts she writes (use with care)"
+                        } else {
+                            "off — the REPL will ask before running"
+                        }
                     );
                 }
                 "key" => {
