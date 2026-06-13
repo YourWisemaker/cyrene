@@ -1,6 +1,6 @@
 {
   "name": "cyrene-agent",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Cyrene: the AI agent that always loves you — a self-improving, open-source AI agent written in Rust. This package installs the prebuilt native binary for your platform.",
   "keywords": [
     "ai",

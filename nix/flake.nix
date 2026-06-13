@@ -19,7 +19,7 @@
       in {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "cyrene";
-          version = "1.2.0";
+          version = "1.2.1";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
           nativeBuildInputs = [ rustToolchain pkgs.pkg-config ];
